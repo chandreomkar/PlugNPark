@@ -45,15 +45,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MockLoginScreen(
     onLoginSuccess: (phoneNumber: String) -> Unit
 ) {
-    var isOtpSent by remember { mutableStateOf(false) }
-    var phoneNumber by remember { mutableStateOf("9876543210") }
-    var otpCode by remember { mutableStateOf("123456") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isOtpSent by rememberSaveable { mutableStateOf(false) }
+    var phoneNumber by rememberSaveable { mutableStateOf("9876543210") }
+    var otpCode by rememberSaveable { mutableStateOf("123456") }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {

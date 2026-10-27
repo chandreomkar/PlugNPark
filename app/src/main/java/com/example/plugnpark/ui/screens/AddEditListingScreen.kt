@@ -397,7 +397,7 @@ fun AddEditListingScreen(
                     if (title.isNotBlank() && address.isNotBlank()) {
                         val price = priceText.toDoubleOrNull() ?: 150.0
                         val power = powerKwText.toDoubleOrNull() ?: 7.4
-                        viewModel.addNewListing(
+                        viewModel.addNewListingWithPhotosAndRules(
                             title = title,
                             description = description,
                             address = address,
@@ -412,7 +412,11 @@ fun AddEditListingScreen(
                             isCovered = isCovered,
                             hasCCTV = hasCCTV,
                             vehicleType = vehicleType,
-                            imageUrl = photoUri?.toString() ?: ""
+                            instantBook = true,
+                            photos = listOf(photoUri?.toString() ?: "https://images.unsplash.com/photo-1563720223185-11003d516935"),
+                            activeDays = setOf(1, 2, 3, 4, 5, 6, 7),
+                            startMinute = 360,
+                            endMinute = 1320
                         )
                         onBack()
                     }

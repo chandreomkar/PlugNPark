@@ -1,7 +1,9 @@
 package com.example.plugnpark.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -26,15 +28,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.EvStation
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocalParking
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.ViewList
@@ -43,27 +53,33 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,22 +94,48 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.domain.model.ListingType
+import com.example.plugnpark.ui.components.ListingSkeletonCard
 import com.example.plugnpark.ui.components.OsmdroidMapView
 import com.example.plugnpark.ui.viewmodel.ExploreViewModel
 import com.example.plugnpark.ui.viewmodel.ListingWithDistance
+import com.example.plugnpark.ui.viewmodel.SortOption
+import com.example.plugnpark.ui.viewmodel.SosRecommendation
+import com.example.plugnpark.util.LocationProvider
 import com.example.plugnpark.util.LocationUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
     viewModel: ExploreViewModel,
     onListingClick: (listingId: String) -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val sheetState = rememberModalBottomSheetState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    val fetchAndApplyLocation: suspend () -> Unit = {
+        val location = LocationProvider.getCurrentLocation(context)
+        if (location != null) {
+            val isWithinIndia = location.latitude in 8.0..37.0 && location.longitude in 68.0..97.0
+            if (isWithinIndia) {
+                viewModel.updateUserLocation(location.latitude, location.longitude)
+                snackbarHostState.showSnackbar("Location updated! Showing spots near you")
+            } else {
+                viewModel.updateUserLocation(LocationUtils.MUMBAI_LAT, LocationUtils.MUMBAI_LNG)
+                snackbarHostState.showSnackbar("Showing results near Mumbai (Emulator location detected)")
+            }
+        } else {
+            viewModel.updateUserLocation(LocationUtils.MUMBAI_LAT, LocationUtils.MUMBAI_LNG)
+            snackbarHostState.showSnackbar("Showing results near Mumbai")
+        }
+    }
 
     // Location Permission Launcher
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -101,8 +143,13 @@ fun ExploreScreen(
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
         val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        if (fineGranted || coarseGranted) {
-            viewModel.updateUserLocation(LocationUtils.MUMBAI_LAT, LocationUtils.MUMBAI_LNG)
+        coroutineScope.launch {
+            if (fineGranted || coarseGranted) {
+                fetchAndApplyLocation()
+            } else {
+                viewModel.updateUserLocation(LocationUtils.MUMBAI_LAT, LocationUtils.MUMBAI_LNG)
+                snackbarHostState.showSnackbar("Showing results near Mumbai")
+            }
         }
     }
 
@@ -110,9 +157,14 @@ fun ExploreScreen(
         val hasPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        if (!hasPermission) {
+        if (hasPermission) {
+            fetchAndApplyLocation()
+        } else {
             locationPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -138,7 +190,7 @@ fun ExploreScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Top Search & Filter Control Bar
+            // Top Search Bar & Red SOS Button Bar
             Surface(
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp
@@ -177,6 +229,50 @@ fun ExploreScreen(
 
                         Spacer(modifier = Modifier.width(8.dp))
 
+                        // Red SOS Button
+                        Button(
+                            onClick = { viewModel.openSosDialog() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.height(52.dp)
+                        ) {
+                            Icon(Icons.Default.BatteryAlert, contentDescription = "SOS", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("SOS", fontWeight = FontWeight.ExtraBold)
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Bell Icon with Unread Badge
+                        IconButton(
+                            onClick = onOpenNotifications,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                )
+                        ) {
+                            Box {
+                                Icon(
+                                    Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                if (uiState.unreadNotificationCount > 0) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = Color.Red,
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .align(Alignment.TopEnd)
+                                    ) {}
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
                         // Toggle Map / List
                         IconButton(
                             onClick = { viewModel.toggleMapView() },
@@ -195,42 +291,146 @@ fun ExploreScreen(
                         }
                     }
 
+                    // Recent Search Chips
+                    if (uiState.searchQuery.isNotBlank() || uiState.recentSearches.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            item {
+                                Text(
+                                    text = "Recent:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                            items(uiState.recentSearches) { recent ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.clickable { viewModel.onSearchQueryChange(recent) }
+                                ) {
+                                    Text(
+                                        text = recent,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Segmented Control Chips: ALL / EV Chargers / Parking & City Filters
+                    // Filter Chips Bar: Sort, My Vehicle, Available Now, Saved, Category & City
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // My Vehicle Filter Chip
                         item {
+                            val defaultVeh = uiState.defaultVehicle
                             FilterChip(
-                                selected = uiState.selectedType == ListingType.ALL,
-                                onClick = { viewModel.onTypeSelect(ListingType.ALL) },
-                                label = { Text("All Spots") }
-                            )
-                        }
-                        item {
-                            FilterChip(
-                                selected = uiState.selectedType == ListingType.EV_CHARGER,
-                                onClick = { viewModel.onTypeSelect(ListingType.EV_CHARGER) },
-                                label = { Text("⚡ EV Chargers") },
-                                leadingIcon = { Icon(Icons.Default.EvStation, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                selected = uiState.isVehicleCompatibleOnly,
+                                onClick = { viewModel.toggleVehicleCompatible() },
+                                label = { Text(if (defaultVeh != null) "Compatible (${defaultVeh.model})" else "My Vehicle") },
+                                leadingIcon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.primary,
                                     selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             )
                         }
+
+                        // Sort Dropdown Chip
+                        item {
+                            Box {
+                                FilterChip(
+                                    selected = true,
+                                    onClick = { isSortMenuOpen = true },
+                                    label = { Text("Sort: ${uiState.sortOption.label}") },
+                                    leadingIcon = { Icon(Icons.Default.Sort, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                )
+
+                                DropdownMenu(
+                                    expanded = isSortMenuOpen,
+                                    onDismissRequest = { isSortMenuOpen = false }
+                                ) {
+                                    SortOption.entries.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option.label) },
+                                            onClick = {
+                                                viewModel.onSortOptionSelect(option)
+                                                isSortMenuOpen = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Available Now Chip
                         item {
                             FilterChip(
-                                selected = uiState.selectedType == ListingType.PARKING,
-                                onClick = { viewModel.onTypeSelect(ListingType.PARKING) },
-                                label = { Text("🅿️ Parking") },
-                                leadingIcon = { Icon(Icons.Default.LocalParking, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                selected = uiState.isAvailableNowOnly,
+                                onClick = { viewModel.toggleAvailableNow() },
+                                label = { Text("Available now") },
+                                leadingIcon = { Icon(Icons.Default.AccessTime, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            )
+                        }
+
+                        // Saved Filter Chip
+                        item {
+                            FilterChip(
+                                selected = uiState.isSavedOnly,
+                                onClick = { viewModel.toggleSavedOnly() },
+                                label = { Text("Saved") },
+                                leadingIcon = { Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(16.dp)) },
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = MaterialTheme.colorScheme.secondary,
                                     selectedLabelColor = MaterialTheme.colorScheme.onSecondary
                                 )
+                            )
+                        }
+
+                        // Near Me Chip
+                        item {
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        val hasPermission = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.ACCESS_FINE_LOCATION
+                                        ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        ) == PackageManager.PERMISSION_GRANTED
+
+                                        if (!hasPermission) {
+                                            locationPermissionLauncher.launch(
+                                                arrayOf(
+                                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                                )
+                                            )
+                                        } else {
+                                            fetchAndApplyLocation()
+                                        }
+                                    }
+                                },
+                                label = { Text("Near me") },
+                                leadingIcon = { Icon(Icons.Default.NearMe, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             )
                         }
 
@@ -243,6 +443,41 @@ fun ExploreScreen(
                             )
                         }
 
+                        // Category Chips
+                        item {
+                            FilterChip(
+                                selected = uiState.selectedType == ListingType.ALL,
+                                onClick = { viewModel.onTypeSelect(ListingType.ALL) },
+                                label = { Text("All Spots") }
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = uiState.selectedType == ListingType.EV_CHARGER,
+                                onClick = { viewModel.onTypeSelect(ListingType.EV_CHARGER) },
+                                label = { Text("⚡ EV Chargers") },
+                                leadingIcon = { Icon(Icons.Default.EvStation, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                        }
+                        item {
+                            FilterChip(
+                                selected = uiState.selectedType == ListingType.PARKING,
+                                onClick = { viewModel.onTypeSelect(ListingType.PARKING) },
+                                label = { Text("🅿️ Parking") },
+                                leadingIcon = { Icon(Icons.Default.LocalParking, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                        }
+
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(24.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant)
+                            )
+                        }
+
+                        // City Filters
                         listOf("ALL", "Mumbai", "Pune").forEach { city ->
                             item {
                                 FilterChip(
@@ -256,7 +491,7 @@ fun ExploreScreen(
                 }
             }
 
-            // Body Content: Map View or List View
+            // Body Content: Map View or Pull-to-Refresh List View
             Box(modifier = Modifier.fillMaxSize()) {
                 if (uiState.isMapView) {
                     OsmdroidMapView(
@@ -268,7 +503,7 @@ fun ExploreScreen(
                         modifier = Modifier.fillMaxSize()
                     )
 
-                    // Overlay Map Preview Card when a listing marker is selected
+                    // Overlay Map Preview Card
                     androidx.compose.animation.AnimatedVisibility(
                         visible = uiState.selectedListing != null,
                         enter = slideInVertically(initialOffsetY = { it }),
@@ -290,39 +525,65 @@ fun ExploreScreen(
                         }
                     }
                 } else {
-                    if (uiState.listingsWithDistance.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.FilterList,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.outline
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text("No spots found matching your search", color = MaterialTheme.colorScheme.outline)
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isRefreshing,
+                        onRefresh = { viewModel.refresh() },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (uiState.isLoading) {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                item { Spacer(modifier = Modifier.height(8.dp)) }
+                                items(3) { ListingSkeletonCard() }
                             }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-                            items(uiState.listingsWithDistance, key = { it.listing.id }) { item ->
-                                EnhancedListingCard(
-                                    item = item,
-                                    onClick = { onListingClick(item.listing.id) }
-                                )
+                        } else if (uiState.listingsWithDistance.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.padding(24.dp)
+                                ) {
+                                    Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "No spots found matching your search or active filters.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Button(
+                                        onClick = { viewModel.clearAllFilters() },
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Clear Filters & Reset")
+                                    }
+                                }
                             }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                item { Spacer(modifier = Modifier.height(8.dp)) }
 
-                            item { Spacer(modifier = Modifier.height(16.dp)) }
+                                items(uiState.listingsWithDistance, key = { it.listing.id }) { item ->
+                                    EnhancedListingCard(
+                                        item = item,
+                                        onClick = { onListingClick(item.listing.id) },
+                                        onToggleFavorite = { viewModel.toggleFavorite(item.listing.id) }
+                                    )
+                                }
+
+                                item { Spacer(modifier = Modifier.height(16.dp)) }
+                            }
                         }
                     }
                 }
@@ -339,24 +600,105 @@ fun ExploreScreen(
             )
         }
 
-        // Booking Detail Dialog
-        uiState.selectedListing?.let { listing ->
-            BookingConfirmationDialog(
-                listing = listing,
-                onDismiss = { viewModel.selectListing(null) },
-                onConfirm = { hours -> viewModel.createBooking(listing, hours) }
+        // SOS Low Battery Dialog
+        if (uiState.isSosDialogOpen) {
+            SosLowBatteryDialog(
+                batteryPct = uiState.sosBatteryPct,
+                recommendations = uiState.sosRecommendations,
+                onBatteryPctChange = { viewModel.setSosBatteryPct(it) },
+                onDismiss = { viewModel.closeSosDialog() },
+                onBookSpot = { listingId ->
+                    viewModel.closeSosDialog()
+                    onListingClick(listingId)
+                }
             )
         }
     }
 }
 
 @Composable
+fun SosLowBatteryDialog(
+    batteryPct: Float,
+    recommendations: List<SosRecommendation>,
+    onBatteryPctChange: (Float) -> Unit,
+    onDismiss: () -> Unit,
+    onBookSpot: (listingId: String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = Color(0xFFD32F2F))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("SOS Emergency Charging", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Current EV Battery %: ${batteryPct.toInt()}%", fontWeight = FontWeight.Bold, color = Color(0xFFD32F2F))
+                Slider(
+                    value = batteryPct,
+                    onValueChange = onBatteryPctChange,
+                    valueRange = 1f..20f,
+                    steps = 18
+                )
+
+                Text("Nearest 3 Compatible Chargers (25 km/h traffic est.):", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+
+                if (recommendations.isEmpty()) {
+                    Text("No compatible chargers found nearby.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                } else {
+                    recommendations.forEach { rec ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(rec.listing.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "📍 ${LocationUtils.formatDistance(rec.distanceKm)} • ⏱ ~${rec.travelMinutes} mins to reach",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "⚡ Est. ~₹${rec.estimatedCostRupees.toInt()} to charge to 80%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Button(
+                                    onClick = { onBookSpot(rec.listing.id) },
+                                    modifier = Modifier.align(Alignment.End),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Book Now")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
 fun EnhancedListingCard(
     item: ListingWithDistance,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit = {}
 ) {
     val listing = item.listing
     val distanceKm = item.distanceKm
+    val isFavorite = item.isFavorite
 
     Card(
         modifier = Modifier
@@ -419,33 +761,53 @@ fun EnhancedListingCard(
                     }
                 }
 
-                // Verified Badge Overlay
-                if (listing.isVerified) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF00C853),
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .align(Alignment.TopEnd)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                // Favorite Heart & Verified Badges
+                Row(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .align(Alignment.TopEnd),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (listing.isVerified) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF00C853)
                         ) {
-                            Icon(
-                                Icons.Default.Verified,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Verified",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Verified,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Verified",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
                         }
+                    }
+
+                    // Favorite Heart Button
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color.Black.copy(alpha = 0.4f), shape = CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite Spot",
+                            tint = if (isFavorite) Color.Red else Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
@@ -563,6 +925,8 @@ fun MapListingPreviewCard(
     onClose: () -> Unit,
     onBook: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -607,135 +971,40 @@ fun MapListingPreviewCard(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                Button(
-                    onClick = onBook,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Book Spot")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Navigate Button
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val geoUri = Uri.parse("geo:${listing.lat},${listing.lng}?q=${listing.lat},${listing.lng}(${Uri.encode(listing.title)})")
+                                val geoIntent = Intent(Intent.ACTION_VIEW, geoUri)
+                                context.startActivity(geoIntent)
+                            } catch (e: Exception) {
+                                try {
+                                    val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}")
+                                    val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
+                                    context.startActivity(browserIntent)
+                                } catch (e2: Exception) {
+                                    e2.printStackTrace()
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Navigate")
+                    }
+
+                    // Book Button
+                    Button(
+                        onClick = onBook,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Book Spot")
+                    }
                 }
             }
         }
     }
-}
-
-@Composable
-fun BookingConfirmationDialog(
-    listing: Listing,
-    onDismiss: () -> Unit,
-    onConfirm: (hours: Int) -> Unit
-) {
-    var selectedHours by remember { mutableIntStateOf(2) }
-    val basePrice = listing.pricePerHour * selectedHours
-    val platformFee = basePrice * 0.10
-    val totalAmount = basePrice + platformFee
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Book ${listing.title}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = listing.address,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Select Duration (Hours):",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Duration Selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf(1, 2, 3, 4, 6, 8).forEach { hrs ->
-                        Surface(
-                            shape = CircleShape,
-                            color = if (selectedHours == hrs) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clickable { selectedHours = hrs }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "${hrs}h",
-                                    color = if (selectedHours == hrs) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Price Breakdown Box
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Rate (${selectedHours} hrs × ₹${listing.pricePerHour.toInt()})")
-                            Text("₹${basePrice.toInt()}")
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("PlugNPark Fee (10%)")
-                            Text("₹${platformFee.toInt()}")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Total Payable", fontWeight = FontWeight.Bold)
-                            Text("₹${totalAmount.toInt()}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(selectedHours) },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text("Confirm & Pay ₹${totalAmount.toInt()}")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
 }

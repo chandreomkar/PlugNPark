@@ -14,6 +14,7 @@ sealed class NavRoutes(val route: String) {
     object Profile : NavRoutes("profile")
 
     // Detail, Wizard & Booking Flow Routes
+    object Notifications : NavRoutes("notifications")
     object AddEditListing : NavRoutes("add_edit_listing")
     object ListingDetail : NavRoutes("listing_detail/{listingId}") {
         fun createRoute(listingId: String) = "listing_detail/$listingId"

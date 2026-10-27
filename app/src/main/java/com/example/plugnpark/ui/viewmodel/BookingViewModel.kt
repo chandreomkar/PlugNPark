@@ -3,28 +3,36 @@ package com.example.plugnpark.ui.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.plugnpark.data.local.datastore.UserSessionManager
 import com.example.plugnpark.data.local.entity.Booking
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.data.local.entity.Review
 import com.example.plugnpark.data.local.entity.User
+import com.example.plugnpark.data.local.entity.Vehicle
+import com.example.plugnpark.data.repository.BookingResult
 import com.example.plugnpark.data.repository.PlugNParkRepository
 import com.example.plugnpark.domain.model.BookingStatus
+import com.example.plugnpark.domain.model.ListingType
 import com.example.plugnpark.util.NotificationHelper
 import com.example.plugnpark.util.TimeFormatter
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
-import java.util.UUID
 
 data class BookingUiState(
     val listing: Listing? = null,
     val host: User? = null,
+    val defaultVehicle: Vehicle? = null,
+    val isVehicleCompatible: Boolean = true,
+    val compatibilityBadgeText: String? = null,
     val reviews: List<Review> = emptyList(),
     val selectedDateOffset: Int = 0, // 0 = Today, 1 = Tomorrow, 2 = Day after
     val selectedStartHour: Int = 10, // 10 AM default
@@ -38,8 +46,10 @@ data class BookingUiState(
     val userMessage: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BookingViewModel(
-    private val repository: PlugNParkRepository
+    private val repository: PlugNParkRepository,
+    private val sessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _listingId = MutableStateFlow<String?>(null)
@@ -58,6 +68,9 @@ class BookingViewModel(
 
     val uiState: StateFlow<BookingUiState> = combine(
         _listingId,
+        sessionManager.userSessionFlow.flatMapLatest { session ->
+            repository.getVehiclesByOwner(session.userId)
+        },
         _selectedDateOffset,
         _selectedStartHour,
         _durationHours,
@@ -68,20 +81,25 @@ class BookingViewModel(
         _userMessage
     ) { flows ->
         val id = flows[0] as String?
-        val dateOffset = flows[1] as Int
-        val startHour = flows[2] as Int
-        val duration = flows[3] as Int
-        val payMethod = flows[4] as String
-        val isProcessing = flows[5] as Boolean
-        val isSuccess = flows[6] as Boolean
-        val confirmed = flows[7] as Booking?
-        val msg = flows[8] as String?
+        val vehicles = flows[1] as List<Vehicle>
+        val dateOffset = flows[2] as Int
+        val startHour = flows[3] as Int
+        val duration = flows[4] as Int
+        val payMethod = flows[5] as String
+        val isProcessing = flows[6] as Boolean
+        val isSuccess = flows[7] as Boolean
+        val confirmed = flows[8] as Booking?
+        val msg = flows[9] as String?
 
         var currentListing: Listing? = null
         var hostUser: User? = null
         var reviewsList = emptyList<Review>()
         var isOverlapping = false
         var overlapErr: String? = null
+        var isCompatible = true
+        var badgeText: String? = null
+
+        val defaultVeh = vehicles.firstOrNull { it.isDefault } ?: vehicles.firstOrNull()
 
         if (id != null) {
             currentListing = repository.getListingById(id).first()
@@ -89,7 +107,28 @@ class BookingViewModel(
                 hostUser = repository.getUserById(currentListing.hostId).first()
                 reviewsList = repository.getReviewsForListing(id).first()
 
-                // Check overlap against existing Room bookings
+                // Check compatibility
+                if (defaultVeh != null) {
+                    if (currentListing.type == ListingType.EV_CHARGER) {
+                        if (currentListing.connectorType.contains(defaultVeh.connectorType, ignoreCase = true) || defaultVeh.connectorType.contains(currentListing.connectorType, ignoreCase = true)) {
+                            isCompatible = true
+                            badgeText = "✔ Works with your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.connectorType})"
+                        } else {
+                            isCompatible = false
+                            badgeText = "⚠️ Not compatible with your ${defaultVeh.make} ${defaultVeh.model} (Requires ${currentListing.connectorType}, vehicle has ${defaultVeh.connectorType})"
+                        }
+                    } else {
+                        if (currentListing.vehicleType.contains(defaultVeh.vehicleType, ignoreCase = true) || defaultVeh.vehicleType.contains(currentListing.vehicleType, ignoreCase = true)) {
+                            isCompatible = true
+                            badgeText = "✔ Suitable for your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.vehicleType})"
+                        } else {
+                            isCompatible = false
+                            badgeText = "⚠️ May not fit your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.vehicleType})"
+                        }
+                    }
+                }
+
+                // Check overlap
                 val existingBookings = repository.getBookingsByListing(id).first()
                 val (newStart, newEnd) = calculateStartEndMillis(dateOffset, startHour, duration)
 
@@ -108,6 +147,9 @@ class BookingViewModel(
         BookingUiState(
             listing = currentListing,
             host = hostUser,
+            defaultVehicle = defaultVeh,
+            isVehicleCompatible = isCompatible,
+            compatibilityBadgeText = badgeText,
             reviews = reviewsList,
             selectedDateOffset = dateOffset,
             selectedStartHour = startHour,
@@ -165,7 +207,7 @@ class BookingViewModel(
 
         viewModelScope.launch {
             _isPaymentProcessing.value = true
-            delay(2000) // 2-second fake processing state
+            delay(2000)
 
             val (startTime, endTime) = calculateStartEndMillis(
                 currentState.selectedDateOffset,
@@ -173,54 +215,53 @@ class BookingViewModel(
                 currentState.durationHours
             )
 
-            val baseAmount = listing.pricePerHour * currentState.durationHours
-            val platformFee = baseAmount * 0.10
-            val gst = platformFee * 0.18
-            val totalAmount = baseAmount + platformFee + gst
-            val hostEarning = baseAmount
+            val currentUserId = sessionManager.userSessionFlow.first().userId
 
-            val booking = Booking(
-                id = "PNP-" + UUID.randomUUID().toString().take(6).uppercase(),
+            when (val result = repository.createBooking(
                 listingId = listing.id,
-                seekerId = "user_seeker_1",
-                startTime = startTime,
-                endTime = endTime,
-                totalAmount = totalAmount,
-                platformFee = platformFee,
-                hostEarning = hostEarning,
-                status = BookingStatus.CONFIRMED,
-                createdAt = System.currentTimeMillis()
-            )
-
-            // Save in Room
-            repository.createBooking(
-                listingId = listing.id,
-                seekerId = "user_seeker_1",
+                seekerId = currentUserId,
                 startTime = startTime,
                 endTime = endTime,
                 pricePerHour = listing.pricePerHour
-            )
+            )) {
+                is BookingResult.Success -> {
+                    val booking = result.booking
+                    _confirmedBooking.value = booking
+                    _isPaymentProcessing.value = false
+                    _isPaymentSuccess.value = true
 
-            _confirmedBooking.value = booking
-            _isPaymentProcessing.value = false
-            _isPaymentSuccess.value = true
+                    // System Notification
+                    NotificationHelper.showBookingConfirmationNotification(
+                        context = context,
+                        bookingId = booking.id,
+                        listingTitle = listing.title,
+                        startTimeFormatted = TimeFormatter.formatDateTime(startTime)
+                    )
 
-            // Trigger Notifications
-            NotificationHelper.showBookingConfirmationNotification(
-                context = context,
-                bookingId = booking.id,
-                listingTitle = listing.title,
-                startTimeFormatted = TimeFormatter.formatDateTime(startTime)
-            )
+                    // WorkManager Scheduled 15-Min Start Reminder
+                    NotificationHelper.schedule15MinReminderNotification(
+                        context = context,
+                        bookingId = booking.id,
+                        listingTitle = listing.title,
+                        userId = currentUserId,
+                        startTimeMillis = startTime
+                    )
 
-            NotificationHelper.schedule15MinReminderNotification(
-                context = context,
-                bookingId = booking.id,
-                listingTitle = listing.title,
-                startTimeMillis = startTime
-            )
+                    // Save Notification into Room AppNotification table
+                    repository.sendNotification(
+                        userId = currentUserId,
+                        title = "Booking Confirmed! 🎉",
+                        body = "Your slot at ${listing.title} is reserved for ${TimeFormatter.formatDateTime(startTime)}.",
+                        type = "BOOKING"
+                    )
 
-            onSuccess(booking.id)
+                    onSuccess(booking.id)
+                }
+                is BookingResult.Error -> {
+                    _isPaymentProcessing.value = false
+                    _userMessage.value = result.message
+                }
+            }
         }
     }
 

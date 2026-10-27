@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.plugnpark"
-        minSdk = 35
+        minSdk = 26
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
@@ -57,11 +57,14 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Coil & Osmdroid & DataStore & ZXing
+    // Coil & Osmdroid & DataStore & ZXing & Preference & Location
     implementation(libs.coil.compose)
     implementation(libs.osmdroid.android)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.zxing.core)
+    implementation(libs.androidx.preference.ktx)
+    implementation(libs.play.services.location)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

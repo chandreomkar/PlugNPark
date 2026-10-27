@@ -24,9 +24,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             PlugNParkTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    val rootNavController = rememberNavController()
                     PlugNParkNavGraph(
-                        rootNavController = rootNavController,
                         repository = repository,
                         sessionManager = sessionManager
                     )

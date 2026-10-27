@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
@@ -37,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -66,6 +69,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.plugnpark.data.local.entity.Vehicle
 import com.example.plugnpark.ui.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -208,14 +212,17 @@ fun ProfileScreen(
                 }
             }
 
-            // Vehicle Details Card
+            // My Vehicles Section (Add / Edit / Delete & Default Vehicle)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -224,24 +231,32 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Registered EV & Specs", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("My Vehicles (${uiState.userVehicles.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         }
 
-                        IconButton(
-                            onClick = { viewModel.openEditVehicleDialog() },
-                            modifier = Modifier.size(28.dp)
+                        Button(
+                            onClick = { viewModel.openAddVehicleDialog() },
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Vehicle", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Vehicle")
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(text = uiState.vehicleName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Registration: ${uiState.vehicleNumber}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Connector: ${uiState.connectorType} • ${uiState.vehicleType}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    if (uiState.userVehicles.isEmpty()) {
+                        Text("No vehicles added yet. Add your EV or car for quick compatibility checking!", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                    } else {
+                        uiState.userVehicles.forEach { vehicle ->
+                            VehicleCardItem(
+                                vehicle = vehicle,
+                                isDefault = vehicle.id == uiState.defaultVehicle?.id,
+                                onEdit = { viewModel.openEditVehicleDialog(vehicle) },
+                                onDelete = { viewModel.deleteVehicle(vehicle.id) },
+                                onSetDefault = { viewModel.setDefaultVehicle(vehicle.id) }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -286,7 +301,7 @@ fun ProfileScreen(
                 }
             }
 
-            // About PlugNPark Page / Dialog Toggle
+            // About PlugNPark Page
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -375,52 +390,77 @@ fun ProfileScreen(
             )
         }
 
-        // Edit Vehicle Details Dialog
-        if (uiState.isEditVehicleDialogOpen) {
-            var vName by remember { mutableStateOf(uiState.vehicleName) }
-            var cType by remember { mutableStateOf(uiState.connectorType) }
-            var vType by remember { mutableStateOf(uiState.vehicleType) }
-            var vNum by remember { mutableStateOf(uiState.vehicleNumber) }
+        // Add / Edit Vehicle Dialog
+        if (uiState.isVehicleDialogOpen) {
+            val vToEdit = uiState.vehicleToEdit
+            var make by remember { mutableStateOf(vToEdit?.make ?: "Tata") }
+            var model by remember { mutableStateOf(vToEdit?.model ?: "Nexon EV") }
+            var type by remember { mutableStateOf(vToEdit?.vehicleType ?: "SUV") }
+            var isEv by remember { mutableStateOf(vToEdit?.isEv ?: true) }
+            var connector by remember { mutableStateOf(vToEdit?.connectorType ?: "CCS2") }
+            var batteryText by remember { mutableStateOf(vToEdit?.batteryKwh?.toString() ?: "40.5") }
+            var plate by remember { mutableStateOf(vToEdit?.plateNumber ?: "MH 02 FZ 8899") }
+            var isDefault by remember { mutableStateOf(vToEdit?.isDefault ?: false) }
 
             AlertDialog(
-                onDismissRequest = { viewModel.closeEditVehicleDialog() },
-                title = { Text("Update Vehicle Specs", fontWeight = FontWeight.Bold) },
+                onDismissRequest = { viewModel.closeVehicleDialog() },
+                title = { Text(if (vToEdit == null) "Add Vehicle" else "Edit Vehicle", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        OutlinedTextField(
-                            value = vName,
-                            onValueChange = { vName = it },
-                            label = { Text("EV Model / Name") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = cType,
-                            onValueChange = { cType = it },
-                            label = { Text("Connector Type (Type 2 / CCS2)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = vType,
-                            onValueChange = { vType = it },
-                            label = { Text("Vehicle Category (4-Wheeler / SUV)") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = vNum,
-                            onValueChange = { vNum = it },
-                            label = { Text("Vehicle Registration No.") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(value = make, onValueChange = { make = it }, label = { Text("Make") }, modifier = Modifier.weight(1f))
+                            OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, modifier = Modifier.weight(1f))
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type (SUV/CAR/BIKE)") }, modifier = Modifier.weight(1f))
+                            OutlinedTextField(value = plate, onValueChange = { plate = it }, label = { Text("Plate No.") }, modifier = Modifier.weight(1f))
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isEv, onCheckedChange = { isEv = it })
+                            Text("Electric Vehicle (EV)")
+                        }
+
+                        if (isEv) {
+                            OutlinedTextField(
+                                value = connector,
+                                onValueChange = { connector = it },
+                                label = { Text("Connector (CCS2 / Type 2 / 15A)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = batteryText,
+                                onValueChange = { batteryText = it },
+                                label = { Text("Battery Capacity (kWh)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked = isDefault, onCheckedChange = { isDefault = it })
+                            Text("Set as Primary Default Vehicle")
+                        }
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            if (vName.isNotBlank()) {
-                                viewModel.updateVehicleDetails(vName, cType, vType, vNum)
+                            if (make.isNotBlank() && model.isNotBlank()) {
+                                viewModel.saveVehicle(
+                                    id = vToEdit?.id,
+                                    make = make,
+                                    model = model,
+                                    type = type,
+                                    isEv = isEv,
+                                    connector = connector,
+                                    batteryKwh = batteryText.toDoubleOrNull() ?: 40.0,
+                                    plate = plate,
+                                    isDefault = isDefault
+                                )
                             }
                         }
                     ) {
@@ -428,10 +468,70 @@ fun ProfileScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { viewModel.closeEditVehicleDialog() }) {
+                    TextButton(onClick = { viewModel.closeVehicleDialog() }) {
                         Text("Cancel")
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+fun VehicleCardItem(
+    vehicle: Vehicle,
+    isDefault: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onSetDefault: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("${vehicle.make} ${vehicle.model}", fontWeight = FontWeight.Bold)
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isDefault) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = "✔ Primary",
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    } else {
+                        TextButton(onClick = onSetDefault) {
+                            Text("Set Default", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+
+                    IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${vehicle.vehicleType} • ${if (vehicle.isEv) "EV (${vehicle.connectorType}, ${vehicle.batteryKwh} kWh)" else "Petrol/Diesel"} • ${vehicle.plateNumber}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

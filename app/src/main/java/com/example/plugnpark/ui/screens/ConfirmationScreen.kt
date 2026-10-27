@@ -189,11 +189,19 @@ fun ConfirmationScreen(
             Button(
                 onClick = {
                     if (listing != null) {
-                        val gmmIntentUri = Uri.parse("geo:${listing.lat},${listing.lng}?q=${listing.lat},${listing.lng}(${Uri.encode(listing.title)})")
-                        val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri).apply {
-                            setPackage("com.google.android.apps.maps")
+                        try {
+                            val geoUri = Uri.parse("geo:${listing.lat},${listing.lng}?q=${listing.lat},${listing.lng}(${Uri.encode(listing.title)})")
+                            val geoIntent = Intent(Intent.ACTION_VIEW, geoUri)
+                            context.startActivity(geoIntent)
+                        } catch (e: Exception) {
+                            try {
+                                val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=${listing.lat},${listing.lng}")
+                                val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
+                                context.startActivity(browserIntent)
+                            } catch (e2: Exception) {
+                                e2.printStackTrace()
+                            }
                         }
-                        context.startActivity(mapIntent)
                     }
                 },
                 modifier = Modifier

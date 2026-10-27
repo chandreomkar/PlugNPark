@@ -1,25 +1,78 @@
 package com.example.plugnpark.data.repository
 
-import com.example.plugnpark.data.local.dao.BookingDao
-import com.example.plugnpark.data.local.dao.ListingDao
-import com.example.plugnpark.data.local.dao.ReviewDao
-import com.example.plugnpark.data.local.dao.UserDao
+import androidx.room.withTransaction
+import com.example.plugnpark.data.local.db.PlugNParkDatabase
+import com.example.plugnpark.data.local.entity.AvailabilityRule
 import com.example.plugnpark.data.local.entity.Booking
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.data.local.entity.Review
 import com.example.plugnpark.data.local.entity.User
+import com.example.plugnpark.data.local.entity.Vehicle
 import com.example.plugnpark.domain.model.BookingStatus
 import com.example.plugnpark.domain.model.ListingType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import java.util.Calendar
+import java.util.Locale
 import java.util.UUID
 
+sealed class BookingResult {
+    data class Success(val booking: Booking) : BookingResult()
+    data class Error(val message: String) : BookingResult()
+}
+
 class PlugNParkRepository(
-    private val userDao: UserDao,
-    private val listingDao: ListingDao,
-    private val bookingDao: BookingDao,
-    private val reviewDao: ReviewDao
+    private val database: PlugNParkDatabase
 ) {
+    private val userDao = database.userDao()
+    private val listingDao = database.listingDao()
+    private val bookingDao = database.bookingDao()
+    private val reviewDao = database.reviewDao()
+    private val availabilityRuleDao = database.availabilityRuleDao()
+    private val favoriteDao = database.favoriteDao()
+    private val vehicleDao = database.vehicleDao()
+    private val listingPhotoDao = database.listingPhotoDao()
+    private val appNotificationDao = database.appNotificationDao()
+
+    // VEHICLES
+    fun getVehiclesByOwner(ownerId: String): Flow<List<Vehicle>> = vehicleDao.getVehiclesByOwner(ownerId)
+
+    suspend fun insertVehicle(vehicle: Vehicle) {
+        if (vehicle.isDefault) {
+            vehicleDao.clearDefaultVehicle(vehicle.ownerId)
+        }
+        vehicleDao.insertVehicle(vehicle)
+    }
+
+    suspend fun deleteVehicle(id: String) {
+        vehicleDao.deleteVehicleById(id)
+    }
+
+    suspend fun setDefaultVehicle(ownerId: String, vehicleId: String) {
+        database.withTransaction {
+            vehicleDao.clearDefaultVehicle(ownerId)
+            val vehicle = vehicleDao.getVehicleById(vehicleId).first()
+            if (vehicle != null) {
+                vehicleDao.insertVehicle(vehicle.copy(isDefault = true))
+            }
+        }
+    }
+
+    // FAVORITES
+    fun getFavoriteListingIds(userId: String): Flow<List<String>> =
+        favoriteDao.getFavoritesByUser(userId).map { favorites -> favorites.map { it.listingId } }
+
+    suspend fun toggleFavorite(userId: String, listingId: String) {
+        val current = favoriteDao.getFavoritesByUser(userId).first()
+        val exists = current.any { it.listingId == listingId }
+        if (exists) {
+            favoriteDao.deleteFavorite(userId, listingId)
+        } else {
+            favoriteDao.insertFavorite(com.example.plugnpark.data.local.entity.Favorite(userId = userId, listingId = listingId))
+        }
+    }
+
     // LISTINGS
     fun getAllActiveListings(): Flow<List<Listing>> = listingDao.getAllActiveListings()
 
@@ -39,6 +92,66 @@ class PlugNParkRepository(
         listingDao.updateListing(listing)
     }
 
+    suspend fun deleteListing(listingId: String) {
+        database.withTransaction {
+            listingPhotoDao.deletePhotosByListing(listingId)
+            availabilityRuleDao.deleteRulesByListing(listingId)
+            listingDao.deleteListingById(listingId)
+        }
+    }
+
+    suspend fun sendNotification(userId: String, title: String, body: String, type: String = "BOOKING") {
+        val notif = com.example.plugnpark.data.local.entity.AppNotification(
+            id = "notif_" + UUID.randomUUID().toString().take(8),
+            userId = userId,
+            title = title,
+            body = body,
+            type = type,
+            isRead = false,
+            createdAt = System.currentTimeMillis()
+        )
+        appNotificationDao.insertNotification(notif)
+    }
+
+    fun getNotificationsByUser(userId: String): Flow<List<com.example.plugnpark.data.local.entity.AppNotification>> =
+        appNotificationDao.getNotificationsByUser(userId)
+
+    suspend fun markNotificationAsRead(id: String) {
+        appNotificationDao.markAsRead(id)
+    }
+
+    suspend fun markAllNotificationsAsRead(userId: String) {
+        appNotificationDao.markAllAsRead(userId)
+    }
+
+    suspend fun saveListingWithPhotosAndRules(
+        listing: Listing,
+        photos: List<String>,
+        rules: List<AvailabilityRule>
+    ) {
+        database.withTransaction {
+            listingDao.insertListing(listing)
+
+            if (photos.isNotEmpty()) {
+                listingPhotoDao.deletePhotosByListing(listing.id)
+                val photoEntities = photos.mapIndexed { idx, url ->
+                    com.example.plugnpark.data.local.entity.ListingPhoto(
+                        id = "photo_${listing.id}_${idx + 1}",
+                        listingId = listing.id,
+                        url = url,
+                        sortOrder = idx
+                    )
+                }
+                listingPhotoDao.insertPhotos(photoEntities)
+            }
+
+            if (rules.isNotEmpty()) {
+                availabilityRuleDao.deleteRulesByListing(listing.id)
+                availabilityRuleDao.insertRules(rules)
+            }
+        }
+    }
+
     // BOOKINGS
     fun getAllBookings(): Flow<List<Booking>> = bookingDao.getAllBookings()
 
@@ -54,32 +167,81 @@ class PlugNParkRepository(
         startTime: Long,
         endTime: Long,
         pricePerHour: Double
-    ): Booking {
-        val hours = kotlin.math.max(1.0, (endTime - startTime).toDouble() / (1000 * 3600))
-        val rawTotal = pricePerHour * hours
-        val platformFee = rawTotal * 0.10 // 10% platform fee
-        val totalAmount = rawTotal + platformFee
-        val hostEarning = rawTotal
+    ): BookingResult {
+        return database.withTransaction {
+            val now = System.currentTimeMillis()
 
-        val booking = Booking(
-            id = "book_" + UUID.randomUUID().toString().take(8),
-            listingId = listingId,
-            seekerId = seekerId,
-            startTime = startTime,
-            endTime = endTime,
-            totalAmount = totalAmount,
-            platformFee = platformFee,
-            hostEarning = hostEarning,
-            status = BookingStatus.CONFIRMED,
-            createdAt = System.currentTimeMillis()
-        )
+            // 1. Reject start times in the past
+            if (startTime < now - 120_000L) {
+                return@withTransaction BookingResult.Error("Cannot book a time slot in the past.")
+            }
 
-        bookingDao.insertBooking(booking)
-        return booking
+            // 2. Re-check overlap for CONFIRMED/active bookings
+            val existingBookings = bookingDao.getBookingsByListing(listingId).first()
+            val overlap = existingBookings.any { b ->
+                b.status == BookingStatus.CONFIRMED &&
+                        (startTime < b.endTime && endTime > b.startTime)
+            }
+            if (overlap) {
+                return@withTransaction BookingResult.Error("Selected time slot is already booked for this spot.")
+            }
+
+            // 3. Reject times outside listing's AvailabilityRules
+            val rules = availabilityRuleDao.getRulesForListing(listingId).first()
+            if (rules.isNotEmpty()) {
+                val cal = Calendar.getInstance().apply { timeInMillis = startTime }
+                val rawDay = cal.get(Calendar.DAY_OF_WEEK)
+                val dayOfWeek = if (rawDay == Calendar.SUNDAY) 7 else rawDay - 1
+
+                val startMin = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+                val endCal = Calendar.getInstance().apply { timeInMillis = endTime }
+                val endMin = if (endCal.get(Calendar.DAY_OF_YEAR) != cal.get(Calendar.DAY_OF_YEAR)) {
+                    1439
+                } else {
+                    endCal.get(Calendar.HOUR_OF_DAY) * 60 + endCal.get(Calendar.MINUTE)
+                }
+
+                val ruleForDay = rules.find { it.dayOfWeek == dayOfWeek }
+                if (ruleForDay != null) {
+                    if (startMin < ruleForDay.startMinute || endMin > ruleForDay.endMinute) {
+                        val fromStr = String.format(Locale.getDefault(), "%02d:%02d", ruleForDay.startMinute / 60, ruleForDay.startMinute % 60)
+                        val toStr = String.format(Locale.getDefault(), "%02d:%02d", ruleForDay.endMinute / 60, ruleForDay.endMinute % 60)
+                        return@withTransaction BookingResult.Error("Spot is only available between $fromStr and $toStr.")
+                    }
+                }
+            }
+
+            // Valid: Create single Booking object with exact GST calculation
+            val hours = kotlin.math.max(1.0, (endTime - startTime).toDouble() / (1000 * 3600))
+            val baseAmount = pricePerHour * hours
+            val platformFee = baseAmount * 0.10
+            val gst = platformFee * 0.18
+            val totalAmount = baseAmount + platformFee + gst
+            val hostEarning = baseAmount
+
+            val booking = Booking(
+                id = "PNP-" + UUID.randomUUID().toString().take(6).uppercase(),
+                listingId = listingId,
+                seekerId = seekerId,
+                startTime = startTime,
+                endTime = endTime,
+                totalAmount = totalAmount,
+                platformFee = platformFee,
+                hostEarning = hostEarning,
+                status = BookingStatus.CONFIRMED,
+                createdAt = now
+            )
+
+            bookingDao.insertBooking(booking)
+            BookingResult.Success(booking)
+        }
     }
 
-    suspend fun cancelBooking(bookingId: String) {
+    suspend fun cancelBooking(bookingId: String, context: android.content.Context? = null) {
         bookingDao.updateBookingStatus(bookingId, BookingStatus.CANCELLED)
+        if (context != null) {
+            com.example.plugnpark.util.NotificationHelper.cancelReminder(context, bookingId)
+        }
     }
 
     // USERS
@@ -87,6 +249,25 @@ class PlugNParkRepository(
 
     suspend fun insertUser(user: User) {
         userDao.insertUser(user)
+    }
+
+    suspend fun getOrCreateUserByPhone(phone: String, role: String): User {
+        val existing = userDao.getUserByPhone(phone)
+        if (existing != null) {
+            val updated = existing.copy(role = role)
+            userDao.insertUser(updated)
+            return updated
+        }
+        val newUser = User(
+            id = "user_" + UUID.randomUUID().toString().take(8),
+            name = "User ${phone.takeLast(4)}",
+            phone = phone,
+            email = "user${phone.takeLast(4)}@plugnpark.in",
+            role = role,
+            walletBalancePaise = 100000L
+        )
+        userDao.insertUser(newUser)
+        return newUser
     }
 
     // REVIEWS
@@ -121,7 +302,7 @@ class PlugNParkRepository(
             val newCount = existingListing.ratingCount + 1
             val newAvg = ((existingListing.rating * existingListing.ratingCount) + rating) / newCount
             val updated = existingListing.copy(
-                rating = String.format(java.util.Locale.US, "%.1f", newAvg).toFloat(),
+                avgRating = String.format(Locale.US, "%.1f", newAvg).toFloat(),
                 ratingCount = newCount
             )
             listingDao.updateListing(updated)

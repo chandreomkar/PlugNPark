@@ -2,29 +2,34 @@ package com.example.plugnpark.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.plugnpark.data.local.datastore.UserSessionManager
 import com.example.plugnpark.data.repository.PlugNParkRepository
 
 class ViewModelFactory(
-    private val repository: PlugNParkRepository
+    private val repository: PlugNParkRepository,
+    private val sessionManager: UserSessionManager
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(ExploreViewModel::class.java) -> {
-                ExploreViewModel(repository) as T
+                ExploreViewModel(repository, sessionManager) as T
             }
             modelClass.isAssignableFrom(BookingsViewModel::class.java) -> {
-                BookingsViewModel(repository) as T
+                BookingsViewModel(repository, sessionManager) as T
             }
             modelClass.isAssignableFrom(HostViewModel::class.java) -> {
-                HostViewModel(repository) as T
+                HostViewModel(repository, sessionManager) as T
             }
             modelClass.isAssignableFrom(ProfileViewModel::class.java) -> {
-                ProfileViewModel(repository) as T
+                ProfileViewModel(repository, sessionManager) as T
             }
             modelClass.isAssignableFrom(BookingViewModel::class.java) -> {
-                BookingViewModel(repository) as T
+                BookingViewModel(repository, sessionManager) as T
+            }
+            modelClass.isAssignableFrom(NotificationsViewModel::class.java) -> {
+                NotificationsViewModel(repository, sessionManager) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

@@ -12,6 +12,9 @@ interface ReviewDao {
     @Query("SELECT * FROM reviews WHERE listingId = :listingId ORDER BY createdAt DESC")
     fun getReviewsForListing(listingId: String): Flow<List<Review>>
 
+    @Query("SELECT * FROM reviews WHERE bookingId = :bookingId")
+    fun getReviewByBookingId(bookingId: String): Flow<Review?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReview(review: Review)
 

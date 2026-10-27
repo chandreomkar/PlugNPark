@@ -1,14 +1,16 @@
 package com.example.plugnpark.ui.components
 
 import android.view.MotionEvent
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
-import org.osmdroid.config.Configuration
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -25,7 +27,7 @@ fun OsmdroidLocationPicker(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    Configuration.getInstance().userAgentValue = context.packageName
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     val mapView = remember {
         MapView(context).apply {
@@ -33,6 +35,22 @@ fun OsmdroidLocationPicker(
             setMultiTouchControls(true)
             controller.setZoom(14.0)
             controller.setCenter(GeoPoint(selectedLat, selectedLng))
+        }
+    }
+
+    // Lifecycle binding
+    DisposableEffect(lifecycleOwner, mapView) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mapView.onDetach()
         }
     }
 

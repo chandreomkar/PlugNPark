@@ -187,6 +187,7 @@ fun BookingItemCard(
     val errorColor = MaterialTheme.colorScheme.error
 
     val statusInfo = when (booking.status) {
+        BookingStatus.PENDING -> StatusInfo(primaryColor, "PENDING APPROVAL", Icons.Default.Schedule)
         BookingStatus.CONFIRMED -> StatusInfo(primaryColor, "UPCOMING", Icons.Default.CheckCircle)
         BookingStatus.COMPLETED -> StatusInfo(secondaryColor, "COMPLETED", Icons.Default.CheckCircle)
         BookingStatus.CANCELLED -> StatusInfo(errorColor, "CANCELLED", Icons.Default.Cancel)

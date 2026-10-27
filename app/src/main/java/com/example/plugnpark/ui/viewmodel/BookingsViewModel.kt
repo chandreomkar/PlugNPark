@@ -2,14 +2,18 @@ package com.example.plugnpark.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.plugnpark.data.local.datastore.UserSessionManager
 import com.example.plugnpark.data.local.entity.Booking
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.data.repository.PlugNParkRepository
 import com.example.plugnpark.domain.model.BookingStatus
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -25,8 +29,10 @@ data class BookingsUiState(
     val userMessage: String? = null
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BookingsViewModel(
-    private val repository: PlugNParkRepository
+    private val repository: PlugNParkRepository,
+    private val sessionManager: UserSessionManager
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(0)
@@ -34,7 +40,9 @@ class BookingsViewModel(
     private val _userMessage = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<BookingsUiState> = combine(
-        repository.getBookingsBySeeker("user_seeker_1"),
+        sessionManager.userSessionFlow.flatMapLatest { session ->
+            repository.getBookingsBySeeker(session.userId)
+        },
         repository.getAllActiveListings(),
         _selectedTab,
         _selectedBookingForReview,
@@ -105,11 +113,13 @@ class BookingsViewModel(
         val item = _selectedBookingForReview.value ?: return
         viewModelScope.launch {
             try {
+                val session = sessionManager.userSessionFlow.first()
+                val user = repository.getUserById(session.userId).first()
                 repository.submitReviewAndUpdateListing(
                     bookingId = item.booking.id,
                     listingId = item.booking.listingId,
-                    reviewerId = "user_seeker_1",
-                    reviewerName = "Rahul Sharma",
+                    reviewerId = session.userId,
+                    reviewerName = user?.name ?: "Verified Seeker",
                     rating = rating,
                     comment = comment
                 )

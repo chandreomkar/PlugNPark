@@ -5,6 +5,11 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import java.util.concurrent.TimeUnit
 
 object NotificationHelper {
 
@@ -44,11 +49,10 @@ object NotificationHelper {
         manager.notify(bookingId.hashCode(), builder.build())
     }
 
-    fun schedule15MinReminderNotification(
+    fun show15MinReminderNotification(
         context: Context,
         bookingId: String,
-        listingTitle: String,
-        startTimeMillis: Long
+        listingTitle: String
     ) {
         createNotificationChannel(context)
 
@@ -61,5 +65,44 @@ object NotificationHelper {
 
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify((bookingId + "_reminder").hashCode(), builder.build())
+    }
+
+    fun schedule15MinReminderNotification(
+        context: Context,
+        bookingId: String,
+        listingTitle: String,
+        userId: String,
+        startTimeMillis: Long
+    ) {
+        val now = System.currentTimeMillis()
+        val reminderTime = startTimeMillis - (15 * 60 * 1000L) // 15 mins before
+        val delayMillis = reminderTime - now
+
+        if (delayMillis > 0) {
+            val inputData = Data.Builder()
+                .putString("booking_id", bookingId)
+                .putString("listing_title", listingTitle)
+                .putString("user_id", userId)
+                .build()
+
+            val workRequest = OneTimeWorkRequestBuilder<ReminderWorker>()
+                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+                .setInputData(inputData)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "reminder_$bookingId",
+                ExistingWorkPolicy.REPLACE,
+                workRequest
+            )
+        }
+    }
+
+    fun cancelReminder(context: Context, bookingId: String) {
+        try {
+            WorkManager.getInstance(context).cancelUniqueWork("reminder_$bookingId")
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }

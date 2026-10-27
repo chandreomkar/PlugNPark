@@ -1,113 +1,183 @@
-# ⚡ PlugNPark - Peer-to-Peer EV Charging & Parking Marketplace India
+# PlugNPark ⚡🅿️ - Peer-to-Peer EV Charging & Parking Marketplace
 
-**PlugNPark** is a native Android application (Kotlin, Jetpack Compose, Material 3) that creates a peer-to-peer marketplace for renting out idle home EV chargers and unused private parking spots across Indian cities (Mumbai, Pune, etc.).
+**PlugNPark** is a native Android application built using Kotlin and Jetpack Compose (Material 3). It implements a peer-to-peer EV charger and parking spot marketplace tailored for Indian megacities (Mumbai, Pune, Bandra, Wakad, Powai, Hinjewadi, Andheri, Kothrud).
 
----
-
-## 🚀 Concept & Problem Solved
-
-As EV adoption accelerates rapidly across India (Tata Nexon EV, MG ZS EV, Ather, Ola), urban drivers face two major bottlenecks:
-1. **EV Range & Charger Scarcity:** Long queues and sparse public fast-charging infrastructure.
-2. **Urban Parking Congestion:** High commercial parking rates and difficulty finding safe, covered parking in busy hubs like BKC, Bandra, Andheri, Wakad, Hinjewadi, and Kothrud.
-
-**PlugNPark** solves this by unlocking thousands of private home wallboxes, gated driveways, and stilt parking spaces. Homeowners earn daily passive income, while EV drivers gain instant access to affordable, nearby charging and parking.
+PlugNPark unlocks idle private driveway chargers and parking spots, allowing hosts to monetize their chargers and drivers to easily find, filter, navigate to, and reserve EV chargers or parking spots.
 
 ---
 
-## ✨ Key Features
+## 🛠 Tech Stack & Architecture
 
-- **Splash & 3-Slide Onboarding:** Animated splash screen and onboarding walkthrough (*"Charge at a neighbour's home"*, *"Park in unused spots"*, *"Earn from idle space"*).
-- **Mock Authentication & Role Choice:** Phone number (+91) login with 6-digit OTP (**Demo Mode**) and role selection (*Seeker*, *Host*, or *Both*) saved via **Jetpack DataStore Preferences**.
-- **Interactive Explore Screen:**
-  - Segmented toggle (`All` / `⚡ EV Chargers` / `🅿️ Parking Spots`).
-  - View Switch: Interactive **osmdroid OpenStreetMap** vs. **List View**.
-  - **Haversine Distance Sorting:** Calculates exact distance in kilometers from current location (defaults to Mumbai City Centre if location permission is denied) and sorts listings automatically.
-  - **Coil Photo Loading & Badges:** Verified badges, rating pills, price per hour.
-  - **Filter Bottom Sheet:** Sliders for Max Price (₹30–₹300/hr) and Distance (1–50 km), Connector filter (Type 2, CCS2, 15A), Covered/CCTV filters, and Verified-only toggle.
-- **Detailed Listing View:** Host contact info, EV charger safety checklist (Auto-cutoff MCB breaker, 5kg fire extinguisher, surge protection), parking specs, availability window, and reviews.
-- **Smart Booking & Overlap Check:**
-  - Date picker, start time picker, and duration selector (1 to 12 hours).
-  - **Overlap Validation:** Queries Room database for existing bookings on the spot and blocks overlapping time slots.
-  - **Price Breakdown:** Base amount + 10% Platform Fee + 18% GST on Fee.
-- **Mock Checkout & Payment:** UPI (GPay/PhonePe/Paytm), Credit/Debit Card, and Wallet options with a 2-second fake bank processing simulation.
-- **Booking Confirmation & QR Code:**
-  - Unique Booking ID with a **ZXing-generated QR Code**.
-  - **Google Maps Navigation Intent:** Opens Google Maps directly with spot coordinates.
-- **Local Notifications:** Immediate booking confirmation notification and 15-minute start reminder notification.
-- **My Bookings Screen:**
-  - Tabs for **Upcoming**, **Past**, and **Cancelled**.
-  - **Cancellation Policy:** Full refund allowed if cancelled > 1 hour before start time.
-  - **Rating & Review Dialog:** Post-stay rating and review submission that updates listing average ratings in Room.
-- **Host Dashboard:**
-  - Earnings cards (**Today**, **This Week**, **Total Revenue**).
-  - Custom **Compose Canvas Bar Chart** displaying weekly earnings (Mon–Sun).
-  - Active/Paused listing toggle switch.
-  - **3-Second Electrician Certificate Verification:** Mock certificate upload that transforms unverified spots into green **"✔ Certified & Verified"** spots.
-- **Add/Edit Listing Wizard:** Gallery photo picker (`ActivityResultContracts.GetContent()`), osmdroid tap-to-pin location picker, connector/power specs, and pricing.
-- **Profile & Settings:** Edit display name, switch active role, edit registered EV model & specs, expandable FAQ accordion, About PlugNPark, and session Logout.
+- **Language & Framework**: Kotlin 2.1, Android SDK 35 (`minSdk` 26)
+- **UI Toolkit**: Jetpack Compose (Material 3, Dark & Light Mode Support, Material Icons Extended)
+- **Local Database**: Room DB 2.8 with KSP (`exportSchema = true`, `fallbackToDestructiveMigration()`)
+- **Architecture**: Unidirectional Data Flow (UDF), Repository Pattern, `ViewModel` & Compose `StateFlow`
+- **Session Management**: Android Jetpack DataStore Preferences
+- **Mapping & Location**: osmdroid OpenStreetMap, Google Play Services Location (`FusedLocationProviderClient`)
+- **Background Tasks**: Android Jetpack WorkManager (`OneTimeWorkRequestBuilder` for scheduled start reminders)
+- **Image Loading & QR Code**: Coil Compose, ZXing Core (QR Code Generation)
 
 ---
 
-## 🛠 Architecture & Tech Stack
+## 🗄 Database Schema & ER Diagram
 
-- **Language:** Kotlin 2.1
-- **UI Framework:** Jetpack Compose with Material 3 (Green `#00E676` & Electric-Blue `#00B0FF` theme)
-- **Architecture:** MVVM (Model-View-ViewModel) with Unidirectional Data Flow
-- **Local Database:** Room ORM with KSP annotation processing
-- **Session Persistence:** Jetpack DataStore Preferences
-- **Mapping & Geolocation:** osmdroid OpenStreetMap + Haversine Formula
-- **QR Code Generation:** ZXing Core
-- **Image Loading:** Coil Compose
-- **Async Execution:** Kotlin Coroutines & `StateFlow`
+The app runs on Room Database Version 2 containing 11 entities connected via Foreign Keys (`onDelete = CASCADE` / `SET_NULL`) and compound indices.
 
----
+All monetary amounts are stored as `Long` in **paise** (1 Rupee = 100 paise) and times as `Long` epoch millis.
 
-## 📦 Setup & Run Instructions
-
-### Prerequisites
-- **Android Studio:** Studio Ladybug / 2024.2+
-- **JDK:** Java 11 or higher
-- **Android SDK:** SDK 35 / Android 15 (minSdk 35)
-
-### Steps
-1. Open Android Studio and select **Open Project** -> `PlugNPark`.
-2. Sync Project with Gradle Files (`Gradle Sync`).
-3. Select an Android Emulator or connected physical device.
-4. Run the app (`Shift + F10` or click **Run 'app'**).
-
-To build via command line:
-```bash
-./gradlew app:assembleDebug
+```text
+ +------------------+           +------------------+           +------------------+
+ |       User       |           |     Vehicle      |           |     Listing      |
+ +------------------+           +------------------+           +------------------+
+ | id (PK)          |<---------1| id (PK)          |     +---->| id (PK)          |
+ | name             |           | ownerId (FK)     |     |     | hostId (FK)      |
+ | phone            |           | make, model      |     |     | type, title      |
+ | email, avatarUrl |           | vehicleType      |     |     | city, area       |
+ | role             |           | isEv, connector  |     |     | lat, lng         |
+ | walletBalance    |           | batteryKwh       |     |     | pricePerHourPaise|
+ | createdAt        |           | plateNumber      |     |     | isVerified       |
+ +------------------+           | isDefault        |     |     | isActive         |
+          ^                     +------------------+     |     | instantBook      |
+          |                                              |     | avgRating, count |
+          |                     +------------------+     |     | createdAt        |
+          +--------------------1|     Booking      |     |     +------------------+
+          |                     +------------------+     |       ^   ^   ^   ^
+          |                     | id (PK)          |     |       |   |   |   |
+          |                     | listingId (FK)---+-----+       |   |   |   |
+          +--------------------+| seekerId (FK)    |             |   |   |   |
+          |                     | vehicleId (FK)   |             |   |   |   |
+          |                     | startTime        |             |   |   |   |
+          |                     | endTime          |             |   |   |   |
+          |                     | totalPaise       |             |   |   |   |
+          |                     | status           |             |   |   |   |
+          |                     +------------------+             |   |   |   |
+          |                              ^                       |   |   |   |
+          |                              |                       |   |   |   |
+          |                     +------------------+             |   |   |   |
+          |                     |      Review      |             |   |   |   |
+          |                     +------------------+             |   |   |   |
+          |                     | id (PK)          |             |   |   |   |
+          +--------------------+| bookingId (FK)   |             |   |   |   |
+          |                     | listingId (FK)---+-------------+   |   |   |
+          |                     | reviewerId (FK)  |                 |   |   |
+          |                     | rating, comment  |                 |   |   |
+          |                     +------------------+                 |   |   |
+          |                                                          |   |   |
+          |                     +------------------+                 |   |   |
+          |                     |   ChargerSpec    |                 |   |   |
+          |                     +------------------+                 |   |   |
+          |                     | listingId(PK/FK)-+-----------------+   |   |
+          |                     | connectorType    |                     |   |
+          |                     | powerKw, mcb...  |                     |   |
+          |                     +------------------+                     |   |
+          |                                                              |   |
+          |                     +------------------+                     |   |
+          |                     |   ParkingSpec    |                     |   |
+          |                     +------------------+                     |   |
+          |                     | listingId(PK/FK)-+---------------------+   |
+          |                     | vehicleTypes     |                         |
+          |                     | isCovered, cctv  |                         |
+          |                     +------------------+                         |
+          |                                                                  |
+          |                     +------------------+                         |
+          |                     |   ListingPhoto   |                         |
+          |                     +------------------+                         |
+          |                     | id (PK)          |                         |
+          |                     | listingId (FK)---+-------------------------+
+          |                     | url, sortOrder   |
+          |                     +------------------+
+          |
+          |                     +------------------+
+          |                     | AvailabilityRule |
+          |                     +------------------+
+          |                     | id (PK)          |
+          |                     | listingId (FK)---+-------------------------+
+          |                     | dayOfWeek        |
+          |                     | start/endMinute  |
+          |                     +------------------+
+          |
+          |                     +------------------+
+          |                     |     Favorite     |
+          |                     +------------------+
+          |                     | userId (PK/FK)   |
+          |                     | listingId(PK/FK)-+-------------------------+
+          |                     +------------------+
+          |
+          |                     +------------------+
+          |                     | AppNotification  |
+          |                     +------------------+
+          |                     | id (PK)          |
+          +--------------------+| userId (FK)      |
+                                | title, body      |
+                                | isRead           |
+                                +------------------+
 ```
 
 ---
 
-## 🎬 Short Demo Walkthrough Script
+## 🚀 Step-by-Step Demo Walkthrough Script
 
-1. **Launch App:**
-   - App opens to Splash Screen and transitions to 3-Slide Onboarding.
-   - Click **"Next"** through the slides and tap **"Get Started"**.
-2. **Mock Login & Role Selection:**
-   - Enter `9876543210` and tap **"Send Verification Code"**.
-   - Enter `123456` in the DEMO MODE OTP screen and tap **"Verify & Proceed"**.
-   - Select **"Both (Recommended)"** and tap **"Complete Registration"**.
-3. **Explore Spots:**
-   - Search *"Bandra"* or filter by `⚡ EV Chargers`.
-   - Tap the **Filter Icon** to adjust max price or distance.
-   - Toggle to **Map View** to see osmdroid pins across Mumbai; tap a marker to view the bottom preview card.
-4. **Book a Charger:**
-   - Tap **"Fast 22kW AC Charger at Hill Road Villa"**.
-   - Review host details, safety checklist, and reviews.
-   - Tap **"Book Spot Now"**.
-   - Choose Date (*Today*), Start Time (*10:00 AM*), Duration (*2 hours*). Notice the clear price breakdown (Base + Fee + GST).
-   - Tap **"Proceed to Payment"**, pick **UPI**, and tap **"Pay Now"**.
-   - Observe the 2-second payment processing animation.
-5. **Confirmation & QR Code:**
-   - View the generated **Booking ID** and **ZXing QR Code**.
-   - Tap **"Navigate in Google Maps"** to test location intent.
-   - Receive local push notification for booking confirmation.
-6. **Manage Bookings & Host Dashboard:**
-   - Switch to **Bookings** tab to see your active reservation.
-   - Switch to **Host** tab to inspect earnings cards, Canvas bar chart, upcoming bookings, and tap **"Upload Electrician Certificate"** to watch the 3-second verification animation turn green.
-7. **Profile Settings:**
-   - Go to **Profile** tab, tap edit on Name/Vehicle, expand the FAQ accordion, and test **Log Out**.
+### 1. Onboarding & OTP Login
+- **Action**: Launch the app. Swipe through the 3 onboarding slides (*Find EV Chargers & Parking*, *Host & Earn Passive Income*, *Instant Navigation & Security*).
+- **Action**: Tap **"Get Started"** to go to the Login screen.
+- **Action**: Enter phone number `9876543210` and tap **"Send Verification Code"**.
+- **Action**: Enter mock OTP `123456` and tap **"Verify & Proceed"**.
+- **Action**: On the Role Selection screen, choose **"Both (Seeker & Host)"**.
+
+### 2. Profile & Vehicle Management
+- **Action**: Tap the **Profile** tab in the bottom bar.
+- **Action**: Under **My Vehicles**, see the pre-populated Tata Nexon EV marked as `✔ Primary`.
+- **Action**: Tap **"Add Vehicle"** to add a new EV scooter or car (e.g. Ather 450X, 15A 3-Pin).
+- **Action**: Edit or set any vehicle as the primary default vehicle.
+
+### 3. Explore Screen & Real-time Location
+- **Action**: Tap the **Explore** tab in the bottom bar.
+- **Action**: Grant location permission when prompted. Notice the top bar displaying real-time Haversine distance badges (e.g., `1.2 km away`).
+- **Action**: Try the filter chips:
+  - **Sort Dropdown**: Sort by *Nearest*, *Cheapest*, or *Top rated*.
+  - **Compatible**: Toggle *Compatible (Tata Nexon EV)* to filter chargers matching CCS2 / Type 2.
+  - **Available Now**: Filter spots available at the current time.
+  - **Saved**: Filter spots saved in your favorites.
+  - **Recent Searches**: Tap on suggested search chips like *Bandra*, *Wakad*, or *Powai*.
+- **Action**: Toggle the Map/List icon to view OpenStreetMap tiles (`OsmdroidMapView`) with custom markers.
+- **Action**: Tap a marker on the map to display the bottom overlay preview card with **"Navigate"** (launches Google Maps) and **"Book Spot"** buttons.
+
+### 4. 🚨 SOS Low Battery Emergency Mode
+- **Action**: On the Explore screen, tap the prominent red **"SOS"** button in the top bar.
+- **Action**: Adjust the current EV battery slider to `8%`.
+- **Action**: View the top 3 nearest compatible fast chargers calculated in real-time:
+  - Distance in km
+  - Estimated minutes to reach assuming 25 km/h city traffic
+  - Estimated cost to charge to 80% (`neededKwh / powerKw * pricePerHour`)
+- **Action**: Tap **"Book Now"** on the top recommendation to navigate straight to the listing detail.
+
+### 5. Spot Detail, Vehicle Compatibility & Booking
+- **Action**: View the spot details. Observe the prominent green compatibility badge: `✔ Works with your Tata Nexon EV (CCS2)`.
+- **Action**: Select date (Today / Tomorrow), start time, and duration (e.g., 2 hours).
+- **Action**: Tap **"Proceed to Payment"**.
+- **Action**: Review the price breakdown: Base Rate + PlugNPark Platform Fee (10%) + GST (18%).
+- **Action**: Select payment method (UPI / Card / Wallet) and tap **"Pay & Confirm Reservation"**.
+- **Action**: On the Confirmation screen, view the generated **ZXing QR Code** for check-in and tap **"Navigate to Spot"**.
+- **Action**: Notice that a WorkManager 15-minute start reminder is scheduled automatically and a confirmation notification is stored in Room.
+
+### 6. Host Dashboard & Instant Requests
+- **Action**: Switch to the **Host** tab in the bottom bar.
+- **Action**: View the **Revenue Breakdown**: Gross Sales, PlugNPark Platform Fee (10%), and Net Host Revenue.
+- **Action**: View the **Real Weekly Revenue Bar Chart** generated from completed bookings.
+- **Action**: See incoming booking requests for non-instant listings with **Accept** and **Decline** buttons. Accepting notifies the seeker instantly!
+- **Action**: Under **My Managed Spots**, try the active/paused toggle switch and test the **Delete Listing** confirmation dialog.
+- **Action**: Tap **"Add Spot"** to open the weekly availability schedule editor (day toggles + time pickers) and multi-photo picker.
+
+### 7. Notifications Center
+- **Action**: Return to the Explore screen and notice the red badge on the **Bell Icon** in the top bar.
+- **Action**: Tap the Bell Icon to open the **Notifications Screen**.
+- **Action**: View booking confirmations, scheduled start reminders, and refund notifications with options to **Mark as Read** or **Mark All Read**.
+
+---
+
+## ⚡ Running the Project
+
+1. Open the project in **Android Studio Ladybug (2024.2.1+)** or newer.
+2. Ensure JDK 17 or JDK 21 is selected in Gradle Settings.
+3. Sync Gradle and run `app` on an Android Emulator or physical device running Android 8.0+ (API 26+).
+4. Run tests or build using `./gradlew app:assembleDebug`.

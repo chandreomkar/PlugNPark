@@ -12,6 +12,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :id")
     fun getUserById(id: String): Flow<User?>
 
+    @Query("SELECT * FROM users WHERE phone = :phone LIMIT 1")
+    suspend fun getUserByPhone(phone: String): User?
+
     @Query("SELECT * FROM users")
     fun getAllUsers(): Flow<List<User>>
 

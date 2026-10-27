@@ -241,6 +241,23 @@ fun ListingDetailScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(listing.address, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
+
+                        // Vehicle Compatibility Badge
+                        if (uiState.compatibilityBadgeText != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (uiState.isVehicleCompatible) Color(0xFF00C853).copy(alpha = 0.15f) else Color(0xFFFF9800).copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = uiState.compatibilityBadgeText!!,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (uiState.isVehicleCompatible) Color(0xFF00C853) else Color(0xFFE65100)
+                                )
+                            }
+                        }
                     }
 
                     // Host Info Card

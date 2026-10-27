@@ -1,14 +1,37 @@
 package com.example.plugnpark.ui.navigation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.EvStation
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -19,7 +42,6 @@ import com.example.plugnpark.data.local.datastore.UserSession
 import com.example.plugnpark.data.local.datastore.UserSessionManager
 import com.example.plugnpark.data.repository.PlugNParkRepository
 import com.example.plugnpark.ui.screens.AddEditListingScreen
-import com.example.plugnpark.ui.screens.BookingScreen
 import com.example.plugnpark.ui.screens.BookingsScreen
 import com.example.plugnpark.ui.screens.ConfirmationScreen
 import com.example.plugnpark.ui.screens.ExploreScreen
@@ -27,6 +49,7 @@ import com.example.plugnpark.ui.screens.HostScreen
 import com.example.plugnpark.ui.screens.ListingDetailScreen
 import com.example.plugnpark.ui.screens.MockLoginScreen
 import com.example.plugnpark.ui.screens.MockPaymentScreen
+import com.example.plugnpark.ui.screens.NotificationsScreen
 import com.example.plugnpark.ui.screens.OnboardingScreen
 import com.example.plugnpark.ui.screens.ProfileScreen
 import com.example.plugnpark.ui.screens.RoleChoiceScreen
@@ -35,28 +58,28 @@ import com.example.plugnpark.ui.viewmodel.BookingViewModel
 import com.example.plugnpark.ui.viewmodel.BookingsViewModel
 import com.example.plugnpark.ui.viewmodel.ExploreViewModel
 import com.example.plugnpark.ui.viewmodel.HostViewModel
+import com.example.plugnpark.ui.viewmodel.NotificationsViewModel
 import com.example.plugnpark.ui.viewmodel.ProfileViewModel
 import com.example.plugnpark.ui.viewmodel.ViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
 fun PlugNParkNavGraph(
-    rootNavController: NavHostController,
     repository: PlugNParkRepository,
-    sessionManager: UserSessionManager,
-    modifier: Modifier = Modifier
+    sessionManager: UserSessionManager
 ) {
-    val session by sessionManager.userSessionFlow.collectAsState(initial = UserSession())
+    val rootNavController = rememberNavController()
+    val session by sessionManager.userSessionFlow.collectAsState(initial = null)
     val coroutineScope = rememberCoroutineScope()
 
     NavHost(
         navController = rootNavController,
-        startDestination = NavRoutes.Splash.route,
-        modifier = modifier
+        startDestination = NavRoutes.Splash.route
     ) {
         composable(NavRoutes.Splash.route) {
+            val currentSession = session ?: UserSession()
             SplashScreen(
-                session = session,
+                session = currentSession,
                 onNavigateNext = { targetRoute ->
                     rootNavController.navigate(targetRoute) {
                         popUpTo(NavRoutes.Splash.route) { inclusive = true }
@@ -95,7 +118,8 @@ fun PlugNParkNavGraph(
                 phoneNumber = phone,
                 onRoleSelected = { role ->
                     coroutineScope.launch {
-                        sessionManager.saveLoginSession(phone, role)
+                        val user = repository.getOrCreateUserByPhone(phone, role)
+                        sessionManager.saveLoginSession(userId = user.id, phone = phone, role = role)
                         rootNavController.navigate(NavRoutes.Main.route) {
                             popUpTo(NavRoutes.Splash.route) { inclusive = true }
                         }
@@ -128,9 +152,32 @@ fun MainFlowScreen(
     onLogout: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
-    val factory = ViewModelFactory(repository)
+    val factory = ViewModelFactory(repository, sessionManager)
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val context = LocalContext.current
+
+    // Android 13+ POST_NOTIFICATIONS Runtime Permission Request
+    var showNotificationRationaleDialog by remember { mutableStateOf(false) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        showNotificationRationaleDialog = false
+    }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasNotifPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasNotifPermission) {
+                showNotificationRationaleDialog = true
+            }
+        }
+    }
 
     // Show bottom bar only on primary 4 tabs
     val showBottomBar = currentRoute in listOf(
@@ -143,7 +190,56 @@ fun MainFlowScreen(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                BottomNavigationBar(navController = bottomNavController)
+                NavigationBar {
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Search, contentDescription = "Explore") },
+                        label = { Text("Explore") },
+                        selected = currentRoute == NavRoutes.Explore.route,
+                        onClick = {
+                            if (currentRoute != NavRoutes.Explore.route) {
+                                bottomNavController.navigate(NavRoutes.Explore.route) {
+                                    popUpTo(NavRoutes.Explore.route) { inclusive = true }
+                                }
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.DateRange, contentDescription = "Bookings") },
+                        label = { Text("Bookings") },
+                        selected = currentRoute == NavRoutes.Bookings.route,
+                        onClick = {
+                            if (currentRoute != NavRoutes.Bookings.route) {
+                                bottomNavController.navigate(NavRoutes.Bookings.route) {
+                                    popUpTo(NavRoutes.Explore.route)
+                                }
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.EvStation, contentDescription = "Host") },
+                        label = { Text("Host") },
+                        selected = currentRoute == NavRoutes.Host.route,
+                        onClick = {
+                            if (currentRoute != NavRoutes.Host.route) {
+                                bottomNavController.navigate(NavRoutes.Host.route) {
+                                    popUpTo(NavRoutes.Explore.route)
+                                }
+                            }
+                        }
+                    )
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                        label = { Text("Profile") },
+                        selected = currentRoute == NavRoutes.Profile.route,
+                        onClick = {
+                            if (currentRoute != NavRoutes.Profile.route) {
+                                bottomNavController.navigate(NavRoutes.Profile.route) {
+                                    popUpTo(NavRoutes.Explore.route)
+                                }
+                            }
+                        }
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -158,7 +254,18 @@ fun MainFlowScreen(
                     viewModel = viewModel,
                     onListingClick = { listingId ->
                         bottomNavController.navigate(NavRoutes.ListingDetail.createRoute(listingId))
+                    },
+                    onOpenNotifications = {
+                        bottomNavController.navigate(NavRoutes.Notifications.route)
                     }
+                )
+            }
+
+            composable(NavRoutes.Notifications.route) {
+                val viewModel: NotificationsViewModel = viewModel(factory = factory)
+                NotificationsScreen(
+                    viewModel = viewModel,
+                    onBack = { bottomNavController.popBackStack() }
                 )
             }
 
@@ -197,29 +304,15 @@ fun MainFlowScreen(
             composable(
                 route = NavRoutes.ListingDetail.route,
                 arguments = listOf(navArgument("listingId") { type = NavType.StringType })
-            ) { backStack ->
-                val listingId = backStack.arguments?.getString("listingId") ?: ""
-                val bookingViewModel: BookingViewModel = viewModel(factory = factory)
+            ) { backStackEntry ->
+                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                val viewModel: BookingViewModel = viewModel(factory = factory)
+
                 ListingDetailScreen(
                     listingId = listingId,
-                    viewModel = bookingViewModel,
+                    viewModel = viewModel,
                     onBack = { bottomNavController.popBackStack() },
                     onProceedToBooking = {
-                        bottomNavController.navigate(NavRoutes.BookingConfigure.createRoute(listingId))
-                    }
-                )
-            }
-
-            composable(
-                route = NavRoutes.BookingConfigure.route,
-                arguments = listOf(navArgument("listingId") { type = NavType.StringType })
-            ) { backStack ->
-                val listingId = backStack.arguments?.getString("listingId") ?: ""
-                val bookingViewModel: BookingViewModel = viewModel(factory = factory)
-                BookingScreen(
-                    viewModel = bookingViewModel,
-                    onBack = { bottomNavController.popBackStack() },
-                    onProceedToPayment = {
                         bottomNavController.navigate(NavRoutes.MockPayment.createRoute(listingId))
                     }
                 )
@@ -228,11 +321,12 @@ fun MainFlowScreen(
             composable(
                 route = NavRoutes.MockPayment.route,
                 arguments = listOf(navArgument("listingId") { type = NavType.StringType })
-            ) { backStack ->
-                val listingId = backStack.arguments?.getString("listingId") ?: ""
-                val bookingViewModel: BookingViewModel = viewModel(factory = factory)
+            ) { backStackEntry ->
+                val listingId = backStackEntry.arguments?.getString("listingId") ?: ""
+                val viewModel: BookingViewModel = viewModel(factory = factory)
+
                 MockPaymentScreen(
-                    viewModel = bookingViewModel,
+                    viewModel = viewModel,
                     onBack = { bottomNavController.popBackStack() },
                     onPaymentSuccess = { bookingId ->
                         bottomNavController.navigate(NavRoutes.Confirmation.createRoute(bookingId, listingId)) {
@@ -248,19 +342,49 @@ fun MainFlowScreen(
                     navArgument("bookingId") { type = NavType.StringType },
                     navArgument("listingId") { type = NavType.StringType }
                 )
-            ) { backStack ->
-                val bookingId = backStack.arguments?.getString("bookingId") ?: ""
-                val bookingViewModel: BookingViewModel = viewModel(factory = factory)
+            ) { backStackEntry ->
+                val bookingId = backStackEntry.arguments?.getString("bookingId") ?: ""
+                val viewModel: BookingViewModel = viewModel(factory = factory)
+
                 ConfirmationScreen(
                     bookingId = bookingId,
-                    viewModel = bookingViewModel,
+                    viewModel = viewModel,
                     onNavigateToBookings = {
-                        bottomNavController.navigate(NavRoutes.Bookings.route) {
-                            popUpTo(NavRoutes.Explore.route)
+                        bottomNavController.navigate(NavRoutes.Explore.route) {
+                            popUpTo(NavRoutes.Explore.route) { inclusive = true }
                         }
                     }
                 )
             }
+        }
+
+        // POST_NOTIFICATIONS Permission Explanation Dialog (Android 13+)
+        if (showNotificationRationaleDialog) {
+            AlertDialog(
+                onDismissRequest = { showNotificationRationaleDialog = false },
+                title = { Text("Enable Notifications", fontWeight = FontWeight.Bold) },
+                text = {
+                    Text("Stay updated on your EV charger and parking reservations! PlugNPark needs notification permission to send instant booking confirmations, 15-minute start reminders, and host approval updates.")
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                showNotificationRationaleDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Allow Notifications")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNotificationRationaleDialog = false }) {
+                        Text("Not Now")
+                    }
+                }
+            )
         }
     }
 }
