@@ -42,7 +42,7 @@ import com.example.plugnpark.data.local.entity.Vehicle
         Favorite::class,
         AppNotification::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

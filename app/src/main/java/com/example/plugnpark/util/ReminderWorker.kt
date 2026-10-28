@@ -15,7 +15,7 @@ class ReminderWorker(
     override suspend fun doWork(): Result {
         val bookingId = inputData.getString("booking_id") ?: return Result.failure()
         val listingTitle = inputData.getString("listing_title") ?: "Your Reserved Spot"
-        val userId = inputData.getString("user_id") ?: "user_seeker_1"
+        val userId = inputData.getString("user_id") ?: return Result.failure()
 
         // Show System Notification
         NotificationHelper.show15MinReminderNotification(appContext, bookingId, listingTitle)

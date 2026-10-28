@@ -323,7 +323,7 @@ fun ListingDetailScreen(
                             if (listing.type == ListingType.EV_CHARGER) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Connector Type:", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(listing.connectorType, fontWeight = FontWeight.Bold)
+                                    Text(listing.connectorTypes.joinToString(", ") { it.label }, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

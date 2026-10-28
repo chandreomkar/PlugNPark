@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.plugnpark.domain.model.ConnectorType
 
 @Entity(
     tableName = "charger_specs",
@@ -20,7 +21,7 @@ import androidx.room.PrimaryKey
 data class ChargerSpec(
     @PrimaryKey
     val listingId: String,
-    val connectorType: String,
+    val connectorTypes: List<ConnectorType>,
     val powerKw: Double,
     val hasEarthing: Boolean = true,
     val hasMcb: Boolean = true,

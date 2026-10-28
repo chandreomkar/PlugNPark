@@ -135,7 +135,7 @@ class ProfileViewModel(
         model: String,
         type: String,
         isEv: Boolean,
-        connector: String,
+        connector: com.example.plugnpark.domain.model.ConnectorType,
         batteryKwh: Double,
         plate: String,
         isDefault: Boolean

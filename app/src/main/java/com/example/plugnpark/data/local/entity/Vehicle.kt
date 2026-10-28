@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.plugnpark.domain.model.ConnectorType
 
 @Entity(
     tableName = "vehicles",
@@ -25,7 +26,7 @@ data class Vehicle(
     val model: String,
     val vehicleType: String = "CAR", // BIKE, CAR, SUV
     val isEv: Boolean = true,
-    val connectorType: String = "Type 2",
+    val connectorType: ConnectorType = ConnectorType.TYPE_2,
     val batteryKwh: Double = 40.0,
     val plateNumber: String = "",
     val isDefault: Boolean = false

@@ -178,10 +178,7 @@ class PlugNParkRepository(
 
             // 2. Re-check overlap for CONFIRMED/active bookings
             val existingBookings = bookingDao.getBookingsByListing(listingId).first()
-            val overlap = existingBookings.any { b ->
-                b.status == BookingStatus.CONFIRMED &&
-                        (startTime < b.endTime && endTime > b.startTime)
-            }
+            val overlap = com.example.plugnpark.util.BookingOverlapChecker.hasOverlap(startTime, endTime, existingBookings)
             if (overlap) {
                 return@withTransaction BookingResult.Error("Selected time slot is already booked for this spot.")
             }
@@ -212,12 +209,7 @@ class PlugNParkRepository(
             }
 
             // Valid: Create single Booking object with exact GST calculation
-            val hours = kotlin.math.max(1.0, (endTime - startTime).toDouble() / (1000 * 3600))
-            val baseAmount = pricePerHour * hours
-            val platformFee = baseAmount * 0.10
-            val gst = platformFee * 0.18
-            val totalAmount = baseAmount + platformFee + gst
-            val hostEarning = baseAmount
+            val priceBreakdown = com.example.plugnpark.util.PricingCalculator.calculatePrice(pricePerHour, startTime, endTime)
 
             val booking = Booking(
                 id = "PNP-" + UUID.randomUUID().toString().take(6).uppercase(),
@@ -225,9 +217,9 @@ class PlugNParkRepository(
                 seekerId = seekerId,
                 startTime = startTime,
                 endTime = endTime,
-                totalAmount = totalAmount,
-                platformFee = platformFee,
-                hostEarning = hostEarning,
+                totalAmount = priceBreakdown.totalAmount,
+                platformFee = priceBreakdown.platformFee,
+                hostEarning = priceBreakdown.hostEarning,
                 status = BookingStatus.CONFIRMED,
                 createdAt = now
             )

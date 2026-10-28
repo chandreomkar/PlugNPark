@@ -36,10 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import com.example.plugnpark.domain.model.ConnectorType
+
 data class FilterOptions(
     val maxPrice: Float = 300f,
     val maxDistanceKm: Float = 50f,
-    val selectedConnector: String = "ALL", // "ALL", "Type 2", "CCS2", "15A 3-Pin"
+    val selectedConnector: ConnectorType? = null,
     val isCoveredOnly: Boolean = false,
     val hasCCTVOnly: Boolean = false,
     val isVerifiedOnly: Boolean = false
@@ -117,12 +119,18 @@ fun ExploreFilterBottomSheet(
                 Text("EV Connector Type", fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    val connectors = listOf("ALL", "Type 2", "CCS2", "15A 3-Pin")
-                    items(connectors) { connector ->
+                    item {
+                        FilterChip(
+                            selected = selectedConnector == null,
+                            onClick = { selectedConnector = null },
+                            label = { Text("All Connectors") }
+                        )
+                    }
+                    items(ConnectorType.entries) { connector ->
                         FilterChip(
                             selected = selectedConnector == connector,
                             onClick = { selectedConnector = connector },
-                            label = { Text(if (connector == "ALL") "All Connectors" else connector) }
+                            label = { Text(connector.label) }
                         )
                     }
                 }
@@ -165,7 +173,7 @@ fun ExploreFilterBottomSheet(
                     onClick = {
                         maxPrice = 300f
                         maxDistance = 50f
-                        selectedConnector = "ALL"
+                        selectedConnector = null
                         isCoveredOnly = false
                         hasCCTVOnly = false
                         isVerifiedOnly = false

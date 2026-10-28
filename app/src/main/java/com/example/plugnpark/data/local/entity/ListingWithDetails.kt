@@ -2,6 +2,7 @@ package com.example.plugnpark.data.local.entity
 
 import androidx.room.Embedded
 import androidx.room.Relation
+import com.example.plugnpark.domain.model.ConnectorType
 
 data class ListingWithDetails(
     @Embedded val listing: Listing,
@@ -21,7 +22,7 @@ data class ListingWithDetails(
     )
     val photos: List<ListingPhoto>
 ) {
-    val connectorType: String get() = chargerSpec?.connectorType ?: "None"
+    val connectorTypes: List<ConnectorType> get() = chargerSpec?.connectorTypes ?: emptyList()
     val powerKw: Double get() = chargerSpec?.powerKw ?: 0.0
     val isCovered: Boolean get() = parkingSpec?.isCovered ?: false
     val hasCCTV: Boolean get() = parkingSpec?.hasCctv ?: false
@@ -30,7 +31,7 @@ data class ListingWithDetails(
 
     fun toDomainListing(): Listing {
         return listing.copy(
-            connectorType = connectorType,
+            connectorTypes = connectorTypes,
             powerKw = powerKw,
             isCovered = isCovered,
             hasCCTV = hasCCTV,

@@ -109,22 +109,12 @@ class BookingViewModel(
 
                 // Check compatibility
                 if (defaultVeh != null) {
-                    if (currentListing.type == ListingType.EV_CHARGER) {
-                        if (currentListing.connectorType.contains(defaultVeh.connectorType, ignoreCase = true) || defaultVeh.connectorType.contains(currentListing.connectorType, ignoreCase = true)) {
-                            isCompatible = true
-                            badgeText = "✔ Works with your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.connectorType})"
-                        } else {
-                            isCompatible = false
-                            badgeText = "⚠️ Not compatible with your ${defaultVeh.make} ${defaultVeh.model} (Requires ${currentListing.connectorType}, vehicle has ${defaultVeh.connectorType})"
-                        }
+                    val compatResult = com.example.plugnpark.util.CompatibilityChecker.check(defaultVeh, currentListing)
+                    isCompatible = compatResult.isUsable
+                    badgeText = if (compatResult.isUsable) {
+                        "✔ ${compatResult.reason}"
                     } else {
-                        if (currentListing.vehicleType.contains(defaultVeh.vehicleType, ignoreCase = true) || defaultVeh.vehicleType.contains(currentListing.vehicleType, ignoreCase = true)) {
-                            isCompatible = true
-                            badgeText = "✔ Suitable for your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.vehicleType})"
-                        } else {
-                            isCompatible = false
-                            badgeText = "⚠️ May not fit your ${defaultVeh.make} ${defaultVeh.model} (${defaultVeh.vehicleType})"
-                        }
+                        "⚠️ ${compatResult.reason}"
                     }
                 }
 

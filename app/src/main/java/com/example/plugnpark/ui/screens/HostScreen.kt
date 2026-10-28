@@ -72,6 +72,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.plugnpark.domain.model.ConnectorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.domain.model.ListingType
 import com.example.plugnpark.ui.components.EarningsBarChart
@@ -297,10 +301,10 @@ fun HostScreen(
         if (uiState.isAddListingDialogOpen) {
             AddListingDialog(
                 onDismiss = { viewModel.closeAddListingDialog() },
-                onPublish = { title, desc, addr, city, area, lat, lng, type, price, conn, power, covered, cctv, vehType, instant, photos, days, startMin, endMin ->
+                onPublish = { title, desc, addr, city, area, lat, lng, type, price, connectors, power, covered, cctv, vehType, instant, photos, days, startMin, endMin ->
                     viewModel.addNewListingWithPhotosAndRules(
                         title = title, description = desc, address = addr, city = city, area = area,
-                        lat = lat, lng = lng, type = type, pricePerHour = price, connectorType = conn,
+                        lat = lat, lng = lng, type = type, pricePerHour = price, connectorTypes = connectors,
                         powerKw = power, isCovered = covered, hasCCTV = cctv, vehicleType = vehType,
                         instantBook = instant, photos = photos, activeDays = days, startMinute = startMin, endMinute = endMin
                     )
@@ -496,12 +500,13 @@ fun HostBookingItemCard(item: BookingWithListing) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddListingDialog(
     onDismiss: () -> Unit,
     onPublish: (
         title: String, description: String, address: String, city: String, area: String,
-        lat: Double, lng: Double, type: ListingType, price: Double, connector: String,
+        lat: Double, lng: Double, type: ListingType, price: Double, connectors: List<ConnectorType>,
         power: Double, covered: Boolean, cctv: Boolean, vehType: String, instant: Boolean,
         photos: List<String>, days: Set<Int>, startMin: Int, endMin: Int
     ) -> Unit
@@ -513,12 +518,14 @@ fun AddListingDialog(
     var area by remember { mutableStateOf("Bandra") }
     var priceText by remember { mutableStateOf("150") }
     var isCharger by remember { mutableStateOf(true) }
-    var connector by remember { mutableStateOf("Type 2") }
+    var selectedConnectors by remember { mutableStateOf(setOf(ConnectorType.TYPE_2)) }
     var powerText by remember { mutableStateOf("11.0") }
     var isCovered by remember { mutableStateOf(true) }
     var hasCctv by remember { mutableStateOf(true) }
-    var vehicleType by remember { mutableStateOf("4-Wheeler") }
+    var vehicleType by remember { mutableStateOf("SUV") }
     var instantBook by remember { mutableStateOf(true) }
+
+    var typeExpanded by remember { mutableStateOf(false) }
 
     var selectedDays by remember { mutableStateOf(setOf(1, 2, 3, 4, 5, 6, 7)) } // Mon..Sun
     var photoUrl by remember { mutableStateOf("https://images.unsplash.com/photo-1563720223185-11003d516935") }
@@ -542,7 +549,40 @@ fun AddListingDialog(
                     OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area") }, modifier = Modifier.weight(1f))
                 }
 
-                OutlinedTextField(value = priceText, onValueChange = { priceText = it }, label = { Text("Price (₹/hour)") }, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(value = priceText, onValueChange = { priceText = it }, label = { Text("Price (₹/hour)") }, modifier = Modifier.weight(1f))
+                    
+                    // Vehicle Type Dropdown
+                    ExposedDropdownMenuBox(
+                        expanded = typeExpanded,
+                        onExpandedChange = { typeExpanded = !typeExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = vehicleType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Vehicle Type") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = typeExpanded,
+                            onDismissRequest = { typeExpanded = false }
+                        ) {
+                            listOf("CAR", "SUV", "BIKE").forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        vehicleType = option
+                                        typeExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = isCharger, onCheckedChange = { isCharger = it })
@@ -551,11 +591,23 @@ fun AddListingDialog(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = instantBook, onCheckedChange = { instantBook = it })
-                    Text("Enable Instant Booking (No Host Approval Needed)")
+                    Text("Enable Instant Booking")
                 }
 
                 if (isCharger) {
-                    OutlinedTextField(value = connector, onValueChange = { connector = it }, label = { Text("Connector (Type 2 / CCS2 / 15A)") }, modifier = Modifier.fillMaxWidth())
+                    Text("Supported Connectors:", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                    // Multi-select connector chips
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(ConnectorType.entries.filter { it != ConnectorType.NONE }) { type ->
+                            FilterChip(
+                                selected = type in selectedConnectors,
+                                onClick = {
+                                    selectedConnectors = if (type in selectedConnectors) selectedConnectors - type else selectedConnectors + type
+                                },
+                                label = { Text(type.label) }
+                            )
+                        }
+                    }
                     OutlinedTextField(value = powerText, onValueChange = { powerText = it }, label = { Text("Power Rating (kW)") }, modifier = Modifier.fillMaxWidth())
                 }
 
@@ -603,7 +655,7 @@ fun AddListingDialog(
                             19.0544, 72.8318,
                             if (isCharger) ListingType.EV_CHARGER else ListingType.PARKING,
                             priceText.toDoubleOrNull() ?: 100.0,
-                            connector,
+                            selectedConnectors.toList(),
                             powerText.toDoubleOrNull() ?: 7.4,
                             isCovered, hasCctv, vehicleType, instantBook,
                             listOf(photoUrl), selectedDays, 360, 1320

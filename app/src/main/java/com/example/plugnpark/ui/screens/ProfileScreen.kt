@@ -69,6 +69,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.plugnpark.domain.model.ConnectorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
 import com.example.plugnpark.data.local.entity.Vehicle
 import com.example.plugnpark.ui.viewmodel.ProfileViewModel
 
@@ -397,10 +401,13 @@ fun ProfileScreen(
             var model by remember { mutableStateOf(vToEdit?.model ?: "Nexon EV") }
             var type by remember { mutableStateOf(vToEdit?.vehicleType ?: "SUV") }
             var isEv by remember { mutableStateOf(vToEdit?.isEv ?: true) }
-            var connector by remember { mutableStateOf(vToEdit?.connectorType ?: "CCS2") }
+            var connector by remember { mutableStateOf(vToEdit?.connectorType ?: ConnectorType.CCS2) }
             var batteryText by remember { mutableStateOf(vToEdit?.batteryKwh?.toString() ?: "40.5") }
             var plate by remember { mutableStateOf(vToEdit?.plateNumber ?: "MH 02 FZ 8899") }
             var isDefault by remember { mutableStateOf(vToEdit?.isDefault ?: false) }
+
+            var typeExpanded by remember { mutableStateOf(false) }
+            var connectorExpanded by remember { mutableStateOf(false) }
 
             AlertDialog(
                 onDismissRequest = { viewModel.closeVehicleDialog() },
@@ -416,7 +423,37 @@ fun ProfileScreen(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type (SUV/CAR/BIKE)") }, modifier = Modifier.weight(1f))
+                            // Vehicle Type Dropdown
+                            ExposedDropdownMenuBox(
+                                expanded = typeExpanded,
+                                onExpandedChange = { typeExpanded = !typeExpanded },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                OutlinedTextField(
+                                    value = type,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Type") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    modifier = Modifier.menuAnchor()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = typeExpanded,
+                                    onDismissRequest = { typeExpanded = false }
+                                ) {
+                                    listOf("CAR", "SUV", "BIKE").forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option) },
+                                            onClick = {
+                                                type = option
+                                                typeExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            
                             OutlinedTextField(value = plate, onValueChange = { plate = it }, label = { Text("Plate No.") }, modifier = Modifier.weight(1f))
                         }
 
@@ -426,12 +463,36 @@ fun ProfileScreen(
                         }
 
                         if (isEv) {
-                            OutlinedTextField(
-                                value = connector,
-                                onValueChange = { connector = it },
-                                label = { Text("Connector (CCS2 / Type 2 / 15A)") },
+                            // Connector Dropdown
+                            ExposedDropdownMenuBox(
+                                expanded = connectorExpanded,
+                                onExpandedChange = { connectorExpanded = !connectorExpanded },
                                 modifier = Modifier.fillMaxWidth()
-                            )
+                            ) {
+                                OutlinedTextField(
+                                    value = connector.label,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Connector") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = connectorExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = connectorExpanded,
+                                    onDismissRequest = { connectorExpanded = false }
+                                ) {
+                                    ConnectorType.entries.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(option.label) },
+                                            onClick = {
+                                                connector = option
+                                                connectorExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                             OutlinedTextField(
                                 value = batteryText,
                                 onValueChange = { batteryText = it },
@@ -528,11 +589,16 @@ fun VehicleCardItem(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${vehicle.vehicleType} • ${if (vehicle.isEv) "EV (${vehicle.connectorType}, ${vehicle.batteryKwh} kWh)" else "Petrol/Diesel"} • ${vehicle.plateNumber}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                    val connectorsString = if (vehicle.isEv) {
+                        "EV (${vehicle.connectorType.label}, ${vehicle.batteryKwh} kWh)"
+                    } else {
+                        "Petrol/Diesel"
+                    }
+                    Text(
+                        text = "${vehicle.vehicleType} • $connectorsString • ${vehicle.plateNumber}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
         }
     }
 }

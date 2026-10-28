@@ -407,7 +407,7 @@ fun AddEditListingScreen(
                             lng = lng,
                             type = type,
                             pricePerHour = price,
-                            connectorType = connectorType,
+                            connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2),
                             powerKw = power,
                             isCovered = isCovered,
                             hasCCTV = hasCCTV,

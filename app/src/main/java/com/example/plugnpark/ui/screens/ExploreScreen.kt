@@ -497,6 +497,8 @@ fun ExploreScreen(
                     OsmdroidMapView(
                         listings = uiState.listingsWithDistance.map { it.listing },
                         selectedListing = uiState.selectedListing,
+                        userLat = uiState.userLat,
+                        userLng = uiState.userLng,
                         onListingSelect = { listing ->
                             viewModel.selectListing(listing)
                         },
@@ -754,7 +756,7 @@ fun EnhancedListingCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (listing.type == ListingType.EV_CHARGER) "${listing.powerKw} kW • ${listing.connectorType}" else "Parking Spot",
+                            text = if (listing.type == ListingType.EV_CHARGER) "${listing.powerKw} kW • ${listing.connectorTypes.joinToString("/") { it.name }}" else "Parking Spot",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -951,8 +953,11 @@ fun MapListingPreviewCard(
                 }
             }
 
+            val speedKmH = 25.0
+            val travelMins = ((distanceKm / speedKmH) * 60).toInt().coerceAtLeast(2)
+
             Text(
-                text = "${listing.address} • ${LocationUtils.formatDistance(distanceKm)}",
+                text = "${listing.address} • ${LocationUtils.formatDistance(distanceKm)} (~$travelMins min drive)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

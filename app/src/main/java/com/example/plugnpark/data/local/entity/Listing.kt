@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.plugnpark.domain.model.ConnectorType
 import com.example.plugnpark.domain.model.ListingType
 
 @Entity(
@@ -42,7 +43,7 @@ data class Listing(
     val ratingCount: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
 
-    @Ignore val connectorType: String = "Type 2",
+    @Ignore val connectorTypes: List<ConnectorType> = emptyList(),
     @Ignore val powerKw: Double = 7.4,
     @Ignore val isCovered: Boolean = true,
     @Ignore val hasCCTV: Boolean = true,
@@ -88,7 +89,7 @@ data class Listing(
         avgRating = avgRating,
         ratingCount = ratingCount,
         createdAt = createdAt,
-        connectorType = "Type 2",
+        connectorTypes = emptyList(),
         powerKw = 7.4,
         isCovered = true,
         hasCCTV = true,
@@ -117,7 +118,7 @@ data class Listing(
         availableTo: String = "22:00",
         isActive: Boolean = true,
         hostId: String,
-        connectorType: String = "Type 2",
+        connectorTypes: List<ConnectorType> = emptyList(),
         powerKw: Double = 7.4,
         isCovered: Boolean = true,
         hasCCTV: Boolean = true,
@@ -141,7 +142,7 @@ data class Listing(
         avgRating = rating,
         ratingCount = ratingCount,
         createdAt = System.currentTimeMillis(),
-        connectorType = connectorType,
+        connectorTypes = connectorTypes,
         powerKw = powerKw,
         isCovered = isCovered,
         hasCCTV = hasCCTV,

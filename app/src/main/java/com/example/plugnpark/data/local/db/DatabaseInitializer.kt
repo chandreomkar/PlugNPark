@@ -90,7 +90,7 @@ object DatabaseInitializer {
                     model = "Nexon EV Empowered+",
                     vehicleType = "SUV",
                     isEv = true,
-                    connectorType = "CCS2",
+                    connectorType = com.example.plugnpark.domain.model.ConnectorType.CCS2,
                     batteryKwh = 40.5,
                     plateNumber = "MH 02 FZ 8899",
                     isDefault = true
@@ -102,7 +102,7 @@ object DatabaseInitializer {
                     model = "450X Gen 3",
                     vehicleType = "BIKE",
                     isEv = true,
-                    connectorType = "15A 3-Pin",
+                    connectorType = com.example.plugnpark.domain.model.ConnectorType.THREE_PIN_15A,
                     batteryKwh = 3.7,
                     plateNumber = "MH 02 EQ 1234"
                 ),
@@ -113,7 +113,7 @@ object DatabaseInitializer {
                     model = "Creta SX",
                     vehicleType = "SUV",
                     isEv = false,
-                    connectorType = "None",
+                    connectorType = com.example.plugnpark.domain.model.ConnectorType.NONE,
                     batteryKwh = 0.0,
                     plateNumber = "MH 02 CD 5678"
                 )
@@ -128,7 +128,7 @@ object DatabaseInitializer {
                     description = "Gated private villa parking with Type 2 22kW AC fast charger. Shaded parking spot with 24/7 CCTV surveillance.",
                     address = "Hill Road, Bandra West, Mumbai, Maharashtra 400050", city = "Mumbai", area = "Bandra",
                     lat = 19.0544, lng = 72.8318, pricePerHour = 180.0, rating = 4.9f, ratingCount = 24, isVerified = true,
-                    hostId = "host_mumbai_1", connectorType = "Type 2", powerKw = 22.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 22.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402")
                 ),
@@ -137,7 +137,7 @@ object DatabaseInitializer {
                     description = "5 minutes drive to BKC financial district. Dedicated underground spot with security guard.",
                     address = "Near Asian Heart Institute, BKC, Bandra East, Mumbai 400051", city = "Mumbai", area = "Bandra",
                     lat = 19.0657, lng = 72.8680, pricePerHour = 100.0, rating = 4.7f, ratingCount = 38, isVerified = true,
-                    hostId = "host_mumbai_1", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler / SUV", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -146,7 +146,7 @@ object DatabaseInitializer {
                     description = "Secure covered spot ideal for seaside visits, cafes, or evening walks in Bandra.",
                     address = "Carter Road, Bandra West, Mumbai 400050", city = "Mumbai", area = "Bandra",
                     lat = 19.0600, lng = 72.8220, pricePerHour = 120.0, rating = 4.8f, ratingCount = 19, isVerified = true,
-                    hostId = "host_mumbai_1", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = false,
+                    hostId = "host_mumbai_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = false,
                     vehicleType = "4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1590674899484-d5640e854abe", "https://images.unsplash.com/photo-1506521781263-d8422e82f27a")
                 ),
@@ -155,7 +155,7 @@ object DatabaseInitializer {
                     description = "Located 2 minutes from BKC corporate towers. Office parking spot available after hours and weekends.",
                     address = "Kalanagar, Bandra East, Mumbai 400051", city = "Mumbai", area = "Bandra",
                     lat = 19.0610, lng = 72.8520, pricePerHour = 160.0, rating = 4.6f, ratingCount = 15, isVerified = true,
-                    hostId = "host_mumbai_1", connectorType = "Type 2", powerKw = 7.4, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 7.4, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", isOfficeAfter6pm = true,
                     images = listOf("https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1563720223185-11003d516935")
                 ),
@@ -166,7 +166,7 @@ object DatabaseInitializer {
                     description = "Residential apartment slot with 7.4kW single-phase fast charger. Compatible with Tata Nexon EV, MG ZS EV.",
                     address = "Lokhandwala Complex, Andheri West, Mumbai 400053", city = "Mumbai", area = "Andheri",
                     lat = 19.1412, lng = 72.8256, pricePerHour = 140.0, rating = 4.8f, ratingCount = 31, isVerified = true,
-                    hostId = "host_mumbai_2", connectorType = "CCS2 / Type 2", powerKw = 7.4, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.CCS2, com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 7.4, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402")
                 ),
@@ -175,7 +175,7 @@ object DatabaseInitializer {
                     description = "Convenient parking spot right opposite JB Nagar metro station. Quick exit to Western Express Highway.",
                     address = "JB Nagar, Andheri East, Mumbai 400059", city = "Mumbai", area = "Andheri",
                     lat = 19.1120, lng = 72.8690, pricePerHour = 60.0, rating = 4.5f, ratingCount = 22, isVerified = false,
-                    hostId = "host_mumbai_2", connectorType = "None", powerKw = 0.0, isCovered = false, hasCCTV = true,
+                    hostId = "host_mumbai_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = false, hasCCTV = true,
                     vehicleType = "4-Wheeler / SUV", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -184,7 +184,7 @@ object DatabaseInitializer {
                     description = "Budget friendly home charger with portable cable access. Ideal for Ola S1, Ather 450X, or slow car charge.",
                     address = "Versova, Andheri West, Mumbai 400061", city = "Mumbai", area = "Andheri",
                     lat = 19.1350, lng = 72.8140, pricePerHour = 90.0, rating = 4.4f, ratingCount = 11, isVerified = true,
-                    hostId = "host_mumbai_2", connectorType = "15A 3-Pin", powerKw = 3.3, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.THREE_PIN_15A), powerKw = 3.3, isCovered = true, hasCCTV = true,
                     vehicleType = "2-Wheeler / 4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1563720223185-11003d516935")
                 ),
@@ -193,7 +193,7 @@ object DatabaseInitializer {
                     description = "Quiet private driveway spot near Fun Republic theatre. Excellent security and wide turning space.",
                     address = "Veera Desai Road, Andheri West, Mumbai 400053", city = "Mumbai", area = "Andheri",
                     lat = 19.1380, lng = 72.8330, pricePerHour = 70.0, rating = 4.7f, ratingCount = 14, isVerified = true,
-                    hostId = "host_mumbai_2", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1590674899484-d5640e854abe", "https://images.unsplash.com/photo-1506521781263-d8422e82f27a")
                 ),
@@ -204,7 +204,7 @@ object DatabaseInitializer {
                     description = "High-power 11kW AC charger in central Hiranandani. Relax at nearby cafes while your vehicle charges.",
                     address = "Central Avenue, Hiranandani Gardens, Powai, Mumbai 400076", city = "Mumbai", area = "Powai",
                     lat = 19.1197, lng = 72.9051, pricePerHour = 200.0, rating = 4.9f, ratingCount = 42, isVerified = true,
-                    hostId = "host_mumbai_3", connectorType = "Type 2", powerKw = 11.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_3", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 11.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1506521781263-d8422e82f27a")
                 ),
@@ -213,7 +213,7 @@ object DatabaseInitializer {
                     description = "Covered stilt parking in premium society near Powai lake promenade. CCTV monitoring and watchman on duty.",
                     address = "Saki Vihar Road, Powai, Mumbai 400072", city = "Mumbai", area = "Powai",
                     lat = 19.1280, lng = 72.8990, pricePerHour = 50.0, rating = 4.6f, ratingCount = 18, isVerified = true,
-                    hostId = "host_mumbai_3", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_mumbai_3", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "2-Wheeler / 4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -222,7 +222,7 @@ object DatabaseInitializer {
                     description = "CCS2 22kW Fast Charger installed in private bungalow driveway. Auto-shutoff safety breakers installed.",
                     address = "Main Gate Rd, IIT Area, Powai, Mumbai 400076", city = "Mumbai", area = "Powai",
                     lat = 19.1310, lng = 72.9150, pricePerHour = 220.0, rating = 4.8f, ratingCount = 29, isVerified = true,
-                    hostId = "host_mumbai_3", connectorType = "CCS2", powerKw = 22.0, isCovered = false, hasCCTV = true,
+                    hostId = "host_mumbai_3", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.CCS2), powerKw = 22.0, isCovered = false, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1563720223185-11003d516935")
                 ),
@@ -233,7 +233,7 @@ object DatabaseInitializer {
                     description = "Easy drive-in spot in residential row house. Clean, wide space suitable for Tata Nexon & Mahindra XUV400.",
                     address = "Datta Mandir Road, Wakad, Pune, Maharashtra 411057", city = "Pune", area = "Wakad",
                     lat = 18.5987, lng = 73.7645, pricePerHour = 130.0, rating = 4.7f, ratingCount = 20, isVerified = true,
-                    hostId = "host_pune_1", connectorType = "Type 2", powerKw = 7.4, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 7.4, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler / SUV", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402")
                 ),
@@ -242,7 +242,7 @@ object DatabaseInitializer {
                     description = "Open shaded drive plot near Mumbai-Bangalore highway exit. Ideal for Hinjewadi commuters.",
                     address = "Bhumkar Chowk, Wakad, Pune 411057", city = "Pune", area = "Wakad",
                     lat = 18.6010, lng = 73.7530, pricePerHour = 35.0, rating = 4.3f, ratingCount = 16, isVerified = false,
-                    hostId = "host_pune_1", connectorType = "None", powerKw = 0.0, isCovered = false, hasCCTV = true,
+                    hostId = "host_pune_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = false, hasCCTV = true,
                     vehicleType = "2-Wheeler / 4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -251,7 +251,7 @@ object DatabaseInitializer {
                     description = "10 mins walk from Phoenix Marketcity Wakad. Avoid high mall parking fees and long queues!",
                     address = "Kaspate Wasti, Wakad, Pune 411057", city = "Pune", area = "Wakad",
                     lat = 18.5940, lng = 73.7710, pricePerHour = 40.0, rating = 4.8f, ratingCount = 33, isVerified = true,
-                    hostId = "host_pune_1", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_1", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1590674899484-d5640e854abe", "https://images.unsplash.com/photo-1506521781263-d8422e82f27a")
                 ),
@@ -262,7 +262,7 @@ object DatabaseInitializer {
                     description = "Located right next to Rajiv Gandhi Infotech Park Phase 1. Available after 6 pm on weekdays & 24 hrs on weekends.",
                     address = "Phase 1, Hinjewadi Rajiv Gandhi Infotech Park, Pune 411057", city = "Pune", area = "Hinjewadi",
                     lat = 18.5912, lng = 73.7380, pricePerHour = 175.0, rating = 4.8f, ratingCount = 50, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "Type 2 / CCS2", powerKw = 11.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2, com.example.plugnpark.domain.model.ConnectorType.CCS2), powerKw = 11.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", isOfficeAfter6pm = true,
                     images = listOf("https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1563720223185-11003d516935")
                 ),
@@ -271,7 +271,7 @@ object DatabaseInitializer {
                     description = "Covered parking slot in modern gated society with RFID boom barrier entry.",
                     address = "Phase 2, Hinjewadi, Pune 411057", city = "Pune", area = "Hinjewadi",
                     lat = 18.5810, lng = 73.7190, pricePerHour = 45.0, rating = 4.6f, ratingCount = 27, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -280,7 +280,7 @@ object DatabaseInitializer {
                     description = "Commercial grade AC charger setup in private office campus parking.",
                     address = "Phase 3, Hinjewadi, Pune 411057", city = "Pune", area = "Hinjewadi",
                     lat = 18.5710, lng = 73.6980, pricePerHour = 240.0, rating = 4.9f, ratingCount = 14, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "Type 2", powerKw = 22.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 22.0, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402")
                 ),
@@ -291,7 +291,7 @@ object DatabaseInitializer {
                     description = "Residential bungalow porch with heavy-duty 15A socket. Refreshment water & tea available on request!",
                     address = "Karve Road, Kothrud, Pune 411038", city = "Pune", area = "Kothrud",
                     lat = 18.5074, lng = 73.8077, pricePerHour = 85.0, rating = 4.5f, ratingCount = 17, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "15A 3-Pin", powerKw = 3.3, isCovered = true, hasCCTV = false,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.THREE_PIN_15A), powerKw = 3.3, isCovered = true, hasCCTV = false,
                     vehicleType = "2-Wheeler / 4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1558441719-670b95752402", "https://images.unsplash.com/photo-1563720223185-11003d516935")
                 ),
@@ -300,7 +300,7 @@ object DatabaseInitializer {
                     description = "Wide driveway spot close to Pune-Satara highway bypass exit. Very easy parking for large SUVs.",
                     address = "Near Chandani Chowk, Kothrud, Pune 411038", city = "Pune", area = "Kothrud",
                     lat = 18.5030, lng = 73.7850, pricePerHour = 50.0, rating = 4.7f, ratingCount = 21, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "None", powerKw = 0.0, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.NONE), powerKw = 0.0, isCovered = true, hasCCTV = true,
                     vehicleType = "SUV / 4-Wheeler", is24x7 = false,
                     images = listOf("https://images.unsplash.com/photo-1506521781263-d8422e82f27a", "https://images.unsplash.com/photo-1590674899484-d5640e854abe")
                 ),
@@ -309,7 +309,7 @@ object DatabaseInitializer {
                     description = "Residential charger point with solar panel back-up during daytime hours. Eco-friendly charging!",
                     address = "Ideal Colony, Kothrud, Pune 411038", city = "Pune", area = "Kothrud",
                     lat = 18.5120, lng = 73.8150, pricePerHour = 150.0, rating = 4.9f, ratingCount = 36, isVerified = true,
-                    hostId = "host_pune_2", connectorType = "Type 2", powerKw = 7.4, isCovered = true, hasCCTV = true,
+                    hostId = "host_pune_2", connectorTypes = listOf(com.example.plugnpark.domain.model.ConnectorType.TYPE_2), powerKw = 7.4, isCovered = true, hasCCTV = true,
                     vehicleType = "4-Wheeler", is24x7 = true,
                     images = listOf("https://images.unsplash.com/photo-1563720223185-11003d516935", "https://images.unsplash.com/photo-1558441719-670b95752402")
                 )
@@ -346,7 +346,7 @@ object DatabaseInitializer {
                     chargerSpecsToInsert.add(
                         ChargerSpec(
                             listingId = data.id,
-                            connectorType = data.connectorType,
+                            connectorTypes = data.connectorTypes,
                             powerKw = data.powerKw,
                             hasEarthing = true,
                             hasMcb = true,
@@ -547,7 +547,7 @@ object DatabaseInitializer {
         val ratingCount: Int,
         val isVerified: Boolean,
         val hostId: String,
-        val connectorType: String,
+        val connectorTypes: List<com.example.plugnpark.domain.model.ConnectorType>,
         val powerKw: Double,
         val isCovered: Boolean,
         val hasCCTV: Boolean,

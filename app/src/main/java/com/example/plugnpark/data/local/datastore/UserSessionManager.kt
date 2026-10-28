@@ -15,7 +15,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 data class UserSession(
     val isOnboarded: Boolean = false,
     val isLoggedIn: Boolean = false,
-    val userId: String = "user_seeker_1",
+    val userId: String = "",
     val phoneNumber: String = "",
     val userRole: String = "SEEKER" // SEEKER, HOST, BOTH
 )
@@ -34,7 +34,7 @@ class UserSessionManager(private val context: Context) {
         UserSession(
             isOnboarded = prefs[KEY_IS_ONBOARDED] ?: false,
             isLoggedIn = prefs[KEY_IS_LOGGED_IN] ?: false,
-            userId = prefs[KEY_USER_ID] ?: "user_seeker_1",
+            userId = prefs[KEY_USER_ID] ?: "",
             phoneNumber = prefs[KEY_PHONE_NUMBER] ?: "",
             userRole = prefs[KEY_USER_ROLE] ?: "SEEKER"
         )
@@ -58,7 +58,7 @@ class UserSessionManager(private val context: Context) {
     suspend fun logout() {
         context.dataStore.edit { prefs ->
             prefs[KEY_IS_LOGGED_IN] = false
-            prefs[KEY_USER_ID] = "user_seeker_1"
+            prefs[KEY_USER_ID] = ""
             prefs[KEY_PHONE_NUMBER] = ""
             prefs[KEY_USER_ROLE] = "SEEKER"
         }

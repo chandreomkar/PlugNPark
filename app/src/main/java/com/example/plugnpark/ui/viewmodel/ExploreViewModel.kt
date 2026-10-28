@@ -175,20 +175,14 @@ class ExploreViewModel(
 
             val matchesPrice = listing.pricePerHour <= filters.maxPrice
             val matchesDistance = if (filters.maxDistanceKm >= 50f) true else dist <= filters.maxDistanceKm
-            val matchesConnector = if (filters.selectedConnector == "ALL" || listing.type != ListingType.EV_CHARGER) true else listing.connectorType.contains(filters.selectedConnector, ignoreCase = true)
+            val matchesConnector = if (filters.selectedConnector == null || listing.type != ListingType.EV_CHARGER) true else listing.connectorTypes.contains(filters.selectedConnector)
             val matchesCovered = if (filters.isCoveredOnly) listing.isCovered else true
             val matchesCCTV = if (filters.hasCCTVOnly) listing.hasCCTV else true
             val matchesVerified = if (filters.isVerifiedOnly) listing.isVerified else true
             val matchesSaved = if (savedOnly) item.isFavorite else true
 
             val matchesVehicleCompatibility = if (compatibleOnly && defaultVeh != null) {
-                if (listing.type == ListingType.EV_CHARGER) {
-                    listing.connectorType.contains(defaultVeh.connectorType, ignoreCase = true) ||
-                            defaultVeh.connectorType.contains(listing.connectorType, ignoreCase = true)
-                } else {
-                    listing.vehicleType.contains(defaultVeh.vehicleType, ignoreCase = true) ||
-                            defaultVeh.vehicleType.contains(listing.vehicleType, ignoreCase = true)
-                }
+                com.example.plugnpark.util.CompatibilityChecker.check(defaultVeh, listing).isUsable
             } else true
 
             val matchesAvailableNow = if (availableNow) {
@@ -222,7 +216,7 @@ class ExploreViewModel(
             .filter { item ->
                 val l = item.listing
                 l.type == ListingType.EV_CHARGER &&
-                        (defaultVeh == null || l.connectorType.contains(defaultVeh.connectorType, ignoreCase = true) || defaultVeh.connectorType.contains(l.connectorType, ignoreCase = true))
+                        (defaultVeh == null || com.example.plugnpark.util.CompatibilityChecker.check(defaultVeh, l).isUsable)
             }
             .sortedBy { it.distanceKm }
             .take(3)
