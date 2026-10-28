@@ -127,8 +127,6 @@ fun OsmdroidMapView(
     val routeOverlayFolder = remember { FolderOverlay() }
 
     val isOnline by rememberNetworkConnectivityState()
-    var isTilesFailed by remember { mutableStateOf(false) }
-    var usingFallback by remember { mutableStateOf(false) }
 
     val mapView = remember {
         MapView(context).apply {
@@ -153,27 +151,6 @@ fun OsmdroidMapView(
             overlays.add(userOverlayFolder)
             overlays.add(listingsOverlayFolder)
         }
-    }
-
-    // Tile Fallback Timeout
-    LaunchedEffect(usingFallback, isOnline) {
-        if (!usingFallback && isOnline) {
-            delay(8000)
-            try {
-                // Simplified failure check: assuming failure if timeout is reached
-                isTilesFailed = true
-                usingFallback = true
-            } catch (e: Exception) {
-                isTilesFailed = true
-                usingFallback = true
-            }
-        }
-    }
-
-    // Apply Tile Source
-    LaunchedEffect(Unit) {
-        mapView.setTileSource(TileSourceFactory.MAPNIK)
-        mapView.invalidate()
     }
 
     // Lifecycle binding
