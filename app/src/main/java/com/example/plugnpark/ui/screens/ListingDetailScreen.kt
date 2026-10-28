@@ -1,5 +1,7 @@
 package com.example.plugnpark.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,22 +23,24 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.EvStation
-import androidx.compose.material.icons.filled.LocalParking
+import androidx.compose.material.icons.filled.ElectricMeter
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +62,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.plugnpark.domain.model.ListingType
 import com.example.plugnpark.ui.viewmodel.BookingViewModel
+import com.example.plugnpark.util.CompatibilityResult
 import com.example.plugnpark.util.TimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +72,7 @@ fun ListingDetailScreen(
     viewModel: BookingViewModel,
     onBack: () -> Unit,
     onProceedToBooking: () -> Unit,
+    onNavigateToProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LaunchedEffect(listingId) {
@@ -76,6 +82,9 @@ fun ListingDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listing = uiState.listing
     val host = uiState.host
+    val context = LocalContext.current
+
+    val canBook = uiState.isVehicleCompatible || uiState.hasNoVehicles
 
     Scaffold(
         modifier = modifier,
@@ -118,12 +127,19 @@ fun ListingDetailScreen(
 
                         Button(
                             onClick = onProceedToBooking,
+                            enabled = canBook,
                             shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (canBook) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                            ),
                             modifier = Modifier
                                 .height(50.dp)
-                                .width(180.dp)
+                                .width(190.dp)
                         ) {
-                            Text("Book Spot Now", fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (canBook) "Book Spot Now" else "Incompatible Vehicle",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -242,20 +258,130 @@ fun ListingDetailScreen(
                             Text(listing.address, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
-                        // Vehicle Compatibility Badge
-                        if (uiState.compatibilityBadgeText != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Vehicle Compatibility Banner & Action
+                        if (uiState.hasNoVehicles) {
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (uiState.isVehicleCompatible) Color(0xFF00C853).copy(alpha = 0.15f) else Color(0xFFFF9800).copy(alpha = 0.15f)
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Add your vehicle in Profile for automatic compatibility checks!",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (uiState.compatibilityResult != null) {
+                            val result = uiState.compatibilityResult!!
+                            val (bgColor, textColor) = when (result) {
+                                is CompatibilityResult.Compatible -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+                                is CompatibilityResult.CompatibleSlow -> Color(0xFFFFF8E1) to Color(0xFFF57F17)
+                                is CompatibilityResult.NotCompatible, is CompatibilityResult.NotAnEv -> Color(0xFFFFEBEE) to Color(0xFFC62828)
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = bgColor
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.weight(1f),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (result.isUsable) Icons.Default.CheckCircle else Icons.Default.DirectionsCar,
+                                                contentDescription = null,
+                                                tint = textColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = result.reason,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = textColor
+                                            )
+                                        }
+
+                                        if (!result.isUsable) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            OutlinedButton(
+                                                onClick = onNavigateToProfile,
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Text("Change Vehicle", fontSize = 12.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Effective Charging Speed & Estimation Card (if EV Charger & vehicle present)
+                    if (listing.type == ListingType.EV_CHARGER && uiState.defaultVehicle != null && uiState.defaultVehicle!!.isEv) {
+                        val defaultVeh = uiState.defaultVehicle!!
+                        val estMins = uiState.estimatedChargeTimeMins
+                        val estHours = estMins / 60
+                        val estRemMins = estMins % 60
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = uiState.compatibilityBadgeText!!,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelMedium,
+                                    text = "⚡ Charging Speed & 20% → 80% Estimates",
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (uiState.isVehicleCompatible) Color(0xFF00C853) else Color(0xFFE65100)
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text("Effective Charge Speed", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+                                        Text("${uiState.effectiveSpeedKw} kW AC", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                        Text("Min of charger (${listing.powerKw} kW) & vehicle (${defaultVeh.maxAcChargeKw} kW)", style = MaterialTheme.typography.labelSmall, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Est. Time (20% → 80%)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f))
+                                        Text("${estHours}h ${estRemMins}m", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                        Text("Est. Cost: ~₹${uiState.estimatedChargeCost.toInt()}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                                    }
+                                }
                             }
                         }
                     }
@@ -295,12 +421,23 @@ fun ListingDetailScreen(
                                 )
                             }
 
-                            Icon(
-                                Icons.Default.Phone,
-                                contentDescription = "Call Host",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
+                            IconButton(
+                                onClick = {
+                                    try {
+                                        val callIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${host?.phone ?: "+919820011223"}"))
+                                        context.startActivity(callIntent)
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Phone,
+                                    contentDescription = "Call Host",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
 
@@ -322,12 +459,12 @@ fun ListingDetailScreen(
 
                             if (listing.type == ListingType.EV_CHARGER) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Connector Type:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Connector Types:", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text(listing.connectorTypes.joinToString(", ") { it.label }, fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Output Power:", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Max Charger Power:", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("${listing.powerKw} kW AC Fast Charge", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                 }
 
@@ -378,45 +515,19 @@ fun ListingDetailScreen(
                     // Reviews List
                     Column {
                         Text(
-                            text = "Reviews & Experiences (${uiState.reviews.size})",
+                            text = "User Reviews (${uiState.reviews.size})",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         if (uiState.reviews.isEmpty()) {
-                            Text(
-                                text = "No reviews yet for this spot. Be the first to book!",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text("No reviews yet for this spot.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                         } else {
                             uiState.reviews.forEach { review ->
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(review.reviewerName, fontWeight = FontWeight.Bold)
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(14.dp))
-                                                Spacer(modifier = Modifier.width(2.dp))
-                                                Text("${review.rating}", fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(review.comment, style = MaterialTheme.typography.bodyMedium)
-                                    }
-                                }
+                                ReviewItemCard(review = review)
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         }
                     }
@@ -429,11 +540,39 @@ fun ListingDetailScreen(
 @Composable
 fun SafetyCheckItem(text: String) {
     Row(
-        modifier = Modifier.padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 2.dp)
     ) {
-        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium)
+        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF00C853), modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun ReviewItemCard(review: com.example.plugnpark.data.local.entity.Review) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(review.reviewerName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text("${review.rating}", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(review.comment, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(TimeFormatter.formatDateTime(review.createdAt), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+        }
     }
 }

@@ -224,8 +224,10 @@ class ExploreViewModel(
                 val l = item.listing
                 val speedKmH = 25.0 // 25 km/h city speed
                 val travelMins = ((item.distanceKm / speedKmH) * 60).toInt().coerceAtLeast(2)
-                val powerKw = if (l.powerKw > 0) l.powerKw else 7.4
-                val chargingHours = targetChargeKwh / powerKw
+                val chargerKw = if (l.powerKw > 0) l.powerKw else 7.4
+                val vehicleMaxAcKw = if (defaultVeh != null && defaultVeh.maxAcChargeKw > 0) defaultVeh.maxAcChargeKw else 7.4
+                val effectiveSpeedKw = kotlin.math.min(chargerKw, vehicleMaxAcKw)
+                val chargingHours = if (effectiveSpeedKw > 0) targetChargeKwh / effectiveSpeedKw else 1.0
                 val estimatedCost = chargingHours * l.pricePerHour
 
                 SosRecommendation(

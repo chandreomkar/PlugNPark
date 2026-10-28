@@ -314,6 +314,9 @@ fun MainFlowScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onProceedToBooking = {
                         bottomNavController.navigate(NavRoutes.MockPayment.createRoute(listingId))
+                    },
+                    onNavigateToProfile = {
+                        bottomNavController.navigate(NavRoutes.Profile.route)
                     }
                 )
             }

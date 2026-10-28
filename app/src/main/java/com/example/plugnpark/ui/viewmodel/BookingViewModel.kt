@@ -27,12 +27,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+import com.example.plugnpark.util.CompatibilityChecker
+import com.example.plugnpark.util.CompatibilityResult
+
 data class BookingUiState(
     val listing: Listing? = null,
     val host: User? = null,
     val defaultVehicle: Vehicle? = null,
+    val hasNoVehicles: Boolean = false,
+    val compatibilityResult: CompatibilityResult? = null,
     val isVehicleCompatible: Boolean = true,
     val compatibilityBadgeText: String? = null,
+    val effectiveSpeedKw: Double = 0.0,
+    val estimatedChargeTimeMins: Int = 0,
+    val estimatedChargeCost: Double = 0.0,
     val reviews: List<Review> = emptyList(),
     val selectedDateOffset: Int = 0, // 0 = Today, 1 = Tomorrow, 2 = Day after
     val selectedStartHour: Int = 10, // 10 AM default
@@ -98,8 +106,13 @@ class BookingViewModel(
         var overlapErr: String? = null
         var isCompatible = true
         var badgeText: String? = null
+        var compatResult: CompatibilityResult? = null
+        var effectiveSpeed = 0.0
+        var estChargeMins = 0
+        var estChargeCost = 0.0
 
         val defaultVeh = vehicles.firstOrNull { it.isDefault } ?: vehicles.firstOrNull()
+        val hasNoVehicles = vehicles.isEmpty()
 
         if (id != null) {
             currentListing = repository.getListingById(id).first()
@@ -109,13 +122,28 @@ class BookingViewModel(
 
                 // Check compatibility
                 if (defaultVeh != null) {
-                    val compatResult = com.example.plugnpark.util.CompatibilityChecker.check(defaultVeh, currentListing)
+                    compatResult = CompatibilityChecker.check(defaultVeh, currentListing)
                     isCompatible = compatResult.isUsable
                     badgeText = if (compatResult.isUsable) {
                         "✔ ${compatResult.reason}"
                     } else {
                         "⚠️ ${compatResult.reason}"
                     }
+
+                    if (currentListing.type == ListingType.EV_CHARGER && defaultVeh.isEv) {
+                        val chargerKw = if (currentListing.powerKw > 0) currentListing.powerKw else 7.4
+                        val vehicleMaxAcKw = if (defaultVeh.maxAcChargeKw > 0) defaultVeh.maxAcChargeKw else 7.4
+                        effectiveSpeed = kotlin.math.min(chargerKw, vehicleMaxAcKw)
+
+                        // 20% to 80% SoC charge estimate (60% battery capacity)
+                        val neededKwh = defaultVeh.batteryKwh * 0.60
+                        val chargeHours = if (effectiveSpeed > 0) neededKwh / effectiveSpeed else 1.0
+                        estChargeMins = (chargeHours * 60).toInt().coerceAtLeast(1)
+                        estChargeCost = chargeHours * currentListing.pricePerHour
+                    }
+                } else {
+                    isCompatible = true // Don't block if user has no vehicle
+                    badgeText = "Add your vehicle in Profile for automatic compatibility check"
                 }
 
                 // Check overlap
@@ -138,8 +166,13 @@ class BookingViewModel(
             listing = currentListing,
             host = hostUser,
             defaultVehicle = defaultVeh,
+            hasNoVehicles = hasNoVehicles,
+            compatibilityResult = compatResult,
             isVehicleCompatible = isCompatible,
             compatibilityBadgeText = badgeText,
+            effectiveSpeedKw = effectiveSpeed,
+            estimatedChargeTimeMins = estChargeMins,
+            estimatedChargeCost = estChargeCost,
             reviews = reviewsList,
             selectedDateOffset = dateOffset,
             selectedStartHour = startHour,
