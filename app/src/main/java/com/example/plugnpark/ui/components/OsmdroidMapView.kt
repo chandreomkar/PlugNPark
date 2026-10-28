@@ -64,15 +64,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 
-val CARTO_VOYAGER = XYTileSource(
-    "CARTO_Voyager",
-    4, 19, 256, ".png",
-    arrayOf(
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-    )
-)
+
 
 @Composable
 fun rememberNetworkConnectivityState(): State<Boolean> {
@@ -140,7 +132,7 @@ fun OsmdroidMapView(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(CARTO_VOYAGER)
+            setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
             setUseDataConnection(true)
             isTilesScaledToDpi = true
@@ -179,12 +171,8 @@ fun OsmdroidMapView(
     }
 
     // Apply Tile Source
-    LaunchedEffect(usingFallback) {
-        if (usingFallback) {
-            mapView.setTileSource(CARTO_VOYAGER)
-        } else {
-            mapView.setTileSource(TileSourceFactory.MAPNIK)
-        }
+    LaunchedEffect(Unit) {
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.invalidate()
     }
 
@@ -299,45 +287,17 @@ fun OsmdroidMapView(
             }
         }
 
-        // Retry Chip & Attribution Overlay
-        Box(
+        // Map Attribution Overlay
+        Text(
+            text = "© OpenStreetMap contributors",
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = 8.dp, bottom = 24.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (isTilesFailed) {
-                    Surface(
-                        onClick = {
-                            isTilesFailed = false
-                            usingFallback = false
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shadowElevation = 4.dp
-                    ) {
-                        Text(
-                            text = "Retry Map Connection",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-                
-                if (usingFallback) {
-                    Text(
-                        text = "© OpenStreetMap contributors © CARTO",
-                        modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp),
-                        fontSize = 10.sp,
-                        color = Color.Black
-                    )
-                }
-            }
-        }
+                .background(Color.White.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            fontSize = 10.sp,
+            color = Color.Black
+        )
 
         // Floating Map Controls (My Location + Zoom In / Zoom Out)
         Column(
