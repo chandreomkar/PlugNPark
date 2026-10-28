@@ -28,6 +28,7 @@ data class Vehicle(
     val isEv: Boolean = true,
     val connectorType: ConnectorType = ConnectorType.TYPE_2,
     val batteryKwh: Double = 40.0,
+    val maxAcChargeKw: Double = 7.4,
     val plateNumber: String = "",
     val isDefault: Boolean = false
 )

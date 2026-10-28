@@ -137,6 +137,7 @@ class ProfileViewModel(
         isEv: Boolean,
         connector: com.example.plugnpark.domain.model.ConnectorType,
         batteryKwh: Double,
+        maxAcChargeKw: Double = 7.4,
         plate: String,
         isDefault: Boolean
     ) {
@@ -153,6 +154,7 @@ class ProfileViewModel(
                     isEv = isEv,
                     connectorType = connector,
                     batteryKwh = batteryKwh,
+                    maxAcChargeKw = maxAcChargeKw,
                     plateNumber = plate,
                     isDefault = isDefault
                 )

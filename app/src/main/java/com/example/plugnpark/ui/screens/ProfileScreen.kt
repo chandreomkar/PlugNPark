@@ -403,9 +403,11 @@ fun ProfileScreen(
             var isEv by remember { mutableStateOf(vToEdit?.isEv ?: true) }
             var connector by remember { mutableStateOf(vToEdit?.connectorType ?: ConnectorType.CCS2) }
             var batteryText by remember { mutableStateOf(vToEdit?.batteryKwh?.toString() ?: "40.5") }
+            var maxAcText by remember { mutableStateOf(vToEdit?.maxAcChargeKw?.toString() ?: "7.2") }
             var plate by remember { mutableStateOf(vToEdit?.plateNumber ?: "MH 02 FZ 8899") }
             var isDefault by remember { mutableStateOf(vToEdit?.isDefault ?: false) }
 
+            var presetExpanded by remember { mutableStateOf(false) }
             var typeExpanded by remember { mutableStateOf(false) }
             var connectorExpanded by remember { mutableStateOf(false) }
 
@@ -414,9 +416,54 @@ fun ProfileScreen(
                 title = { Text(if (vToEdit == null) "Add Vehicle" else "Edit Vehicle", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Preset Picker Dropdown
+                        ExposedDropdownMenuBox(
+                            expanded = presetExpanded,
+                            onExpandedChange = { presetExpanded = !presetExpanded },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = "Select Popular Preset...",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("⚡ Preset Picker (Popular Indian EVs)") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = presetExpanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = presetExpanded,
+                                onDismissRequest = { presetExpanded = false }
+                            ) {
+                                com.example.plugnpark.data.VehiclePresets.INDIAN_EV_PRESETS.forEach { preset ->
+                                    DropdownMenuItem(
+                                        text = { Text("${preset.displayName} (${preset.vehicleType})") },
+                                        onClick = {
+                                            make = preset.make
+                                            model = preset.model
+                                            type = preset.vehicleType
+                                            isEv = true
+                                            connector = preset.connectorType
+                                            batteryText = preset.batteryKwh.toString()
+                                            maxAcText = preset.maxAcChargeKw.toString()
+                                            presetExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = com.example.plugnpark.data.VehiclePresets.DISCLAIMER,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(value = make, onValueChange = { make = it }, label = { Text("Make") }, modifier = Modifier.weight(1f))
                             OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, modifier = Modifier.weight(1f))
@@ -493,12 +540,20 @@ fun ProfileScreen(
                                     }
                                 }
                             }
-                            OutlinedTextField(
-                                value = batteryText,
-                                onValueChange = { batteryText = it },
-                                label = { Text("Battery Capacity (kWh)") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = batteryText,
+                                    onValueChange = { batteryText = it },
+                                    label = { Text("Battery (kWh)") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = maxAcText,
+                                    onValueChange = { maxAcText = it },
+                                    label = { Text("Max AC (kW)") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -519,6 +574,7 @@ fun ProfileScreen(
                                     isEv = isEv,
                                     connector = connector,
                                     batteryKwh = batteryText.toDoubleOrNull() ?: 40.0,
+                                    maxAcChargeKw = maxAcText.toDoubleOrNull() ?: 7.4,
                                     plate = plate,
                                     isDefault = isDefault
                                 )
