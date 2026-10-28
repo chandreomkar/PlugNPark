@@ -140,7 +140,7 @@ fun OsmdroidMapView(
 
     val mapView = remember {
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
+            setTileSource(CARTO_VOYAGER)
             setMultiTouchControls(true)
             setUseDataConnection(true)
             isTilesScaledToDpi = true

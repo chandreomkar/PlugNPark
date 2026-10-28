@@ -25,7 +25,7 @@ class PlugNParkApplication : Application() {
         // Initialize Osmdroid configuration
         val config = Configuration.getInstance()
         config.load(this, PreferenceManager.getDefaultSharedPreferences(this))
-        config.userAgentValue = "PlugNParkApp/1.0 (student project)"
+        config.userAgentValue = "Mozilla/5.0 (Android 13; Mobile) PlugNParkApp/1.0 (${packageName})"
 
         val osmBase = File(cacheDir, "osmdroid")
         val osmTiles = File(cacheDir, "osmdroid/tiles")
