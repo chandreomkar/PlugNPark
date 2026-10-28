@@ -23,12 +23,22 @@ class PlugNParkApplication : Application() {
         super.onCreate()
 
         // Initialize Osmdroid configuration
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val config = Configuration.getInstance()
-        config.load(this, PreferenceManager.getDefaultSharedPreferences(this))
-        config.userAgentValue = "Mozilla/5.0 (Android 13; Mobile) PlugNParkApp/1.0 (${packageName})"
+        config.load(this, prefs)
+        config.userAgentValue = "PlugNParkApp/1.0 (student project; +https://github.com/chandreomkar/PlugNPark)"
 
         val osmBase = File(cacheDir, "osmdroid")
         val osmTiles = File(cacheDir, "osmdroid/tiles")
+
+        val cacheVersion = prefs.getInt("map_cache_version", 0)
+        if (cacheVersion < 2) {
+            if (osmTiles.exists()) {
+                osmTiles.deleteRecursively()
+            }
+            prefs.edit().putInt("map_cache_version", 2).apply()
+        }
+
         if (!osmBase.exists()) osmBase.mkdirs()
         if (!osmTiles.exists()) osmTiles.mkdirs()
 

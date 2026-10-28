@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Icon
@@ -54,9 +55,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.plugnpark.data.local.entity.Listing
 import com.example.plugnpark.domain.model.ListingType
-import kotlinx.coroutines.delay
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.FolderOverlay
@@ -317,6 +316,21 @@ fun OsmdroidMapView(
                 Icon(
                     Icons.Default.Remove,
                     contentDescription = "Zoom Out",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Reload Map Button
+            SmallFloatingActionButton(
+                onClick = {
+                    mapView.tileProvider.clearTileCache()
+                    mapView.invalidate()
+                },
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Reload Map",
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

@@ -33,6 +33,10 @@ fun OsmdroidLocationPicker(
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
+            setUseDataConnection(true)
+            isTilesScaledToDpi = true
+            minZoomLevel = 4.0
+            maxZoomLevel = 19.0
             controller.setZoom(14.0)
             controller.setCenter(GeoPoint(selectedLat, selectedLng))
         }

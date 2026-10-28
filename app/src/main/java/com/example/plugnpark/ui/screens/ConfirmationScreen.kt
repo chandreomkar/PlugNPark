@@ -199,7 +199,7 @@ fun ConfirmationScreen(
                                 val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
                                 context.startActivity(browserIntent)
                             } catch (e2: Exception) {
-                                e2.printStackTrace()
+                                android.widget.Toast.makeText(context, "No maps app found", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
