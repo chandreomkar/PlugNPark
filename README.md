@@ -1,54 +1,51 @@
 # PlugNPark ⚡🅿️ - Peer-to-Peer EV Charging & Parking Marketplace
 
-**PlugNPark** is a native Android application built using Kotlin and Jetpack Compose (Material 3). It implements a peer-to-peer EV charger and parking spot marketplace tailored for Indian megacities (Mumbai, Pune, Bandra, Wakad, Powai, Hinjewadi, Andheri, Kothrud).
-
-PlugNPark unlocks idle private driveway chargers and parking spots, allowing hosts to monetize their chargers and drivers to easily find, filter, navigate to, and reserve EV chargers or parking spots.
+**PlugNPark** is a native Android application built entirely with modern Android development practices (Kotlin, Jetpack Compose). It solves urban EV charging anxiety and parking shortages in Indian megacities by connecting EV owners with private hosts who have idle driveway chargers and parking spots.
 
 ---
 
 ## 🛠 Tech Stack & Architecture
 
-- **Language & Framework**: Kotlin 2.1, Android SDK 35 (`minSdk` 26)
-- **UI Toolkit**: Jetpack Compose (Material 3, Dark & Light Mode Support, Material Icons Extended)
-- **Local Database**: Room DB 2.8 with KSP (`exportSchema = true`, `fallbackToDestructiveMigration()`)
-- **Architecture**: Unidirectional Data Flow (UDF), Repository Pattern, `ViewModel` & Compose `StateFlow`
+- **IDE**: Android Studio Ladybug (2024.2.1+)
+- **SDK**: `minSdk 26`, `targetSdk 37`
+- **Language**: Kotlin 2.1
+- **UI Toolkit**: Jetpack Compose (Material 3, Dark/Light theme support)
+- **Local Database**: Room DB v2.8 (KSP, `exportSchema = true`) with relational entities
+- **Mapping & GIS**: osmdroid (OpenStreetMap) with a live **CARTO Voyager fallback** and custom drawn markers
+- **Location Services**: Google Play Services Location (`FusedLocationProviderClient`)
+- **Background Tasks**: Android Jetpack WorkManager (for scheduled 15-minute start reminders)
 - **Session Management**: Android Jetpack DataStore Preferences
-- **Mapping & Location**: osmdroid OpenStreetMap, Google Play Services Location (`FusedLocationProviderClient`)
-- **Background Tasks**: Android Jetpack WorkManager (`OneTimeWorkRequestBuilder` for scheduled start reminders)
-- **Image Loading & QR Code**: Coil Compose, ZXing Core (QR Code Generation)
+- **Architecture**: MVI/MVVM with Unidirectional Data Flow, Repository Pattern, and `StateFlow`
+- **Utilities**: Coil Compose (Images), ZXing Core (QR Codes)
 
 ---
 
-## 🗄 Database Schema & ER Diagram
+## 🗄 Database Schema (Room v2)
 
-The app runs on Room Database Version 2 containing 11 entities connected via Foreign Keys (`onDelete = CASCADE` / `SET_NULL`) and compound indices.
-
-All monetary amounts are stored as `Long` in **paise** (1 Rupee = 100 paise) and times as `Long` epoch millis.
+The application relies on a local relational database with 11 core entities, strictly enforced foreign keys (`CASCADE` / `SET_NULL`), and compound indices for performance. Money is stored in integer **paise** to avoid floating-point loss, and times are in **Epoch Millis**.
 
 ```text
  +------------------+           +------------------+           +------------------+
  |       User       |           |     Vehicle      |           |     Listing      |
  +------------------+           +------------------+           +------------------+
  | id (PK)          |<---------1| id (PK)          |     +---->| id (PK)          |
- | name             |           | ownerId (FK)     |     |     | hostId (FK)      |
- | phone            |           | make, model      |     |     | type, title      |
- | email, avatarUrl |           | vehicleType      |     |     | city, area       |
- | role             |           | isEv, connector  |     |     | lat, lng         |
- | walletBalance    |           | batteryKwh       |     |     | pricePerHourPaise|
- | createdAt        |           | plateNumber      |     |     | isVerified       |
- +------------------+           | isDefault        |     |     | isActive         |
-          ^                     +------------------+     |     | instantBook      |
+ | name, phone      |           | ownerId (FK)     |     |     | hostId (FK)      |
+ | email, role      |           | make, model      |     |     | type, title      |
+ | walletBalance    |           | vehicleType, isEv|     |     | city, lat, lng   |
+ | createdAt        |           | connectorType    |     |     | pricePerHourPaise|
+ +------------------+           | batteryKwh       |     |     | isVerified       |
+          ^                     | isDefault        |     |     | isActive         |
+          |                     +------------------+     |     | instantBook      |
           |                                              |     | avgRating, count |
-          |                     +------------------+     |     | createdAt        |
-          +--------------------1|     Booking      |     |     +------------------+
-          |                     +------------------+     |       ^   ^   ^   ^
+          |                     +------------------+     |     +------------------+
+          +--------------------1|     Booking      |     |       ^   ^   ^   ^
+          |                     +------------------+     |       |   |   |   |
           |                     | id (PK)          |     |       |   |   |   |
           |                     | listingId (FK)---+-----+       |   |   |   |
           +--------------------+| seekerId (FK)    |             |   |   |   |
           |                     | vehicleId (FK)   |             |   |   |   |
-          |                     | startTime        |             |   |   |   |
-          |                     | endTime          |             |   |   |   |
-          |                     | totalPaise       |             |   |   |   |
+          |                     | startTime, end.. |             |   |   |   |
+          |                     | totalPaise, fee..|             |   |   |   |
           |                     | status           |             |   |   |   |
           |                     +------------------+             |   |   |   |
           |                              ^                       |   |   |   |
@@ -80,27 +77,12 @@ All monetary amounts are stored as `Long` in **paise** (1 Rupee = 100 paise) and
           |                     +------------------+                         |
           |                                                                  |
           |                     +------------------+                         |
-          |                     |   ListingPhoto   |                         |
+          |                     | AvailabilityRule |                         |
           |                     +------------------+                         |
           |                     | id (PK)          |                         |
           |                     | listingId (FK)---+-------------------------+
-          |                     | url, sortOrder   |
-          |                     +------------------+
-          |
-          |                     +------------------+
-          |                     | AvailabilityRule |
-          |                     +------------------+
-          |                     | id (PK)          |
-          |                     | listingId (FK)---+-------------------------+
           |                     | dayOfWeek        |
           |                     | start/endMinute  |
-          |                     +------------------+
-          |
-          |                     +------------------+
-          |                     |     Favorite     |
-          |                     +------------------+
-          |                     | userId (PK/FK)   |
-          |                     | listingId(PK/FK)-+-------------------------+
           |                     +------------------+
           |
           |                     +------------------+
@@ -112,72 +94,71 @@ All monetary amounts are stored as `Long` in **paise** (1 Rupee = 100 paise) and
                                 | isRead           |
                                 +------------------+
 ```
+*(Note: ListingPhotos & Favorites omitted for brevity)*
 
 ---
 
-## 🚀 Step-by-Step Demo Walkthrough Script
+## 🚀 Presentation Demo Script
 
-### 1. Onboarding & OTP Login
-- **Action**: Launch the app. Swipe through the 3 onboarding slides (*Find EV Chargers & Parking*, *Host & Earn Passive Income*, *Instant Navigation & Security*).
-- **Action**: Tap **"Get Started"** to go to the Login screen.
-- **Action**: Enter phone number `9876543210` and tap **"Send Verification Code"**.
-- **Action**: Enter mock OTP `123456` and tap **"Verify & Proceed"**.
-- **Action**: On the Role Selection screen, choose **"Both (Seeker & Host)"**.
+Follow these steps to demonstrate the app's full capabilities during a presentation:
 
-### 2. Profile & Vehicle Management
-- **Action**: Tap the **Profile** tab in the bottom bar.
-- **Action**: Under **My Vehicles**, see the pre-populated Tata Nexon EV marked as `✔ Primary`.
-- **Action**: Tap **"Add Vehicle"** to add a new EV scooter or car (e.g. Ather 450X, 15A 3-Pin).
-- **Action**: Edit or set any vehicle as the primary default vehicle.
+1. **Onboarding & Login (DataStore & Room)**
+   - Launch the app. Swipe through the onboarding carousel.
+   - Enter any 10-digit phone number (e.g., `9876543210`) and a mock 6-digit OTP. 
+   - Select **"Both (Seeker & Host)"**. The app creates a local user profile via Room.
 
-### 3. Explore Screen & Real-time Location
-- **Action**: Tap the **Explore** tab in the bottom bar.
-- **Action**: Grant location permission when prompted. Notice the top bar displaying real-time Haversine distance badges (e.g., `1.2 km away`).
-- **Action**: Try the filter chips:
-  - **Sort Dropdown**: Sort by *Nearest*, *Cheapest*, or *Top rated*.
-  - **Compatible**: Toggle *Compatible (Tata Nexon EV)* to filter chargers matching CCS2 / Type 2.
-  - **Available Now**: Filter spots available at the current time.
-  - **Saved**: Filter spots saved in your favorites.
-  - **Recent Searches**: Tap on suggested search chips like *Bandra*, *Wakad*, or *Powai*.
-- **Action**: Toggle the Map/List icon to view OpenStreetMap tiles (`OsmdroidMapView`) with custom markers.
-- **Action**: Tap a marker on the map to display the bottom overlay preview card with **"Navigate"** (launches Google Maps) and **"Book Spot"** buttons.
+2. **Explore Map & Fallback Architecture (osmdroid & CARTO)**
+   - On the Explore screen, toggle to the **Map View**.
+   - Explain that tiles are loaded from OpenStreetMap (MAPNIK). 
+   - *Technical highlight*: If tiles fail to load within 8 seconds, the app seamlessly falls back to CARTO Voyager tiles with proper attribution.
 
-### 4. 🚨 SOS Low Battery Emergency Mode
-- **Action**: On the Explore screen, tap the prominent red **"SOS"** button in the top bar.
-- **Action**: Adjust the current EV battery slider to `8%`.
-- **Action**: View the top 3 nearest compatible fast chargers calculated in real-time:
-  - Distance in km
-  - Estimated minutes to reach assuming 25 km/h city traffic
-  - Estimated cost to charge to 80% (`neededKwh / powerKw * pricePerHour`)
-- **Action**: Tap **"Book Now"** on the top recommendation to navigate straight to the listing detail.
+3. **My Location (FusedLocationProviderClient)**
+   - Tap the **My Location FAB**. 
+   - The map animates smoothly to your device's actual GPS coordinates (using Google Play Services Fused Location API) and places a distinct blue dot with an accuracy circle.
 
-### 5. Spot Detail, Vehicle Compatibility & Booking
-- **Action**: View the spot details. Observe the prominent green compatibility badge: `✔ Works with your Tata Nexon EV (CCS2)`.
-- **Action**: Select date (Today / Tomorrow), start time, and duration (e.g., 2 hours).
-- **Action**: Tap **"Proceed to Payment"**.
-- **Action**: Review the price breakdown: Base Rate + PlugNPark Platform Fee (10%) + GST (18%).
-- **Action**: Select payment method (UPI / Card / Wallet) and tap **"Pay & Confirm Reservation"**.
-- **Action**: On the Confirmation screen, view the generated **ZXing QR Code** for check-in and tap **"Navigate to Spot"**.
-- **Action**: Notice that a WorkManager 15-minute start reminder is scheduled automatically and a confirmation notification is stored in Room.
+4. **🚨 SOS Low Battery Flow (Emergency Routing)**
+   - Tap the prominent red **SOS** button on the top bar.
+   - Adjust the battery slider (e.g., 8%). 
+   - The app dynamically calculates the top 3 nearest *compatible* fast chargers. It calculates ETA assuming a 25 km/h city speed, and estimates the cost to charge the vehicle to 80% capacity.
+   - Tap **"Book Now"** on a recommendation.
 
-### 6. Host Dashboard & Instant Requests
-- **Action**: Switch to the **Host** tab in the bottom bar.
-- **Action**: View the **Revenue Breakdown**: Gross Sales, PlugNPark Platform Fee (10%), and Net Host Revenue.
-- **Action**: View the **Real Weekly Revenue Bar Chart** generated from completed bookings.
-- **Action**: See incoming booking requests for non-instant listings with **Accept** and **Decline** buttons. Accepting notifies the seeker instantly!
-- **Action**: Under **My Managed Spots**, try the active/paused toggle switch and test the **Delete Listing** confirmation dialog.
-- **Action**: Tap **"Add Spot"** to open the weekly availability schedule editor (day toggles + time pickers) and multi-photo picker.
+5. **Booking & Vehicle Compatibility**
+   - On the Listing Detail page, highlight the **Compatibility Badge** (e.g., green `✔ Works with your Tata Nexon EV (CCS2)`).
+   - Select a duration (e.g., 2 hours) and tap **Proceed to Payment**. 
+   - View the exact price breakdown (Base rate + 10% Platform fee + 18% GST).
 
-### 7. Notifications Center
-- **Action**: Return to the Explore screen and notice the red badge on the **Bell Icon** in the top bar.
-- **Action**: Tap the Bell Icon to open the **Notifications Screen**.
-- **Action**: View booking confirmations, scheduled start reminders, and refund notifications with options to **Mark as Read** or **Mark All Read**.
+6. **Mock Payment & QR Code Confirmation**
+   - Tap **Pay & Confirm Reservation**. 
+   - On the Confirmation screen, display the dynamically generated **ZXing QR Code** used for host check-in.
+   - Mention the **"Navigate"** button launches Google Maps intents (`geo:` / `https:`).
+   - *Technical highlight*: A `OneTimeWorkRequest` is dispatched to Android's **WorkManager** to trigger a local push notification 15 minutes prior to the booking start time.
+
+7. **Host Dashboard**
+   - Switch to the **Host** tab in the bottom navigation bar.
+   - Show the **Real Weekly Revenue Bar Chart** (calculated live from `COMPLETED` bookings).
+   - Scroll to **Pending Booking Requests**. Accept a request—this triggers a database transaction to update the status and send an `AppNotification` to the seeker.
+   - Show the **Add Spot** FAB, featuring a custom weekly schedule editor.
+
+8. **Notifications Screen**
+   - Go back to the Explore screen and tap the **Bell Icon** (with the red unread badge).
+   - View the history of system notifications (Booking confirmed, Host approvals, Charging completed).
+   - Tap **"Mark all read"**.
 
 ---
 
-## ⚡ Running the Project
+## 🚧 Known Limitations
 
-1. Open the project in **Android Studio Ladybug (2024.2.1+)** or newer.
-2. Ensure JDK 17 or JDK 21 is selected in Gradle Settings.
-3. Sync Gradle and run `app` on an Android Emulator or physical device running Android 8.0+ (API 26+).
-4. Run tests or build using `./gradlew app:assembleDebug`.
+As a student/prototype project, the following elements are simplified:
+- **Local-Only Database**: Data is stored locally in SQLite (Room) and does not currently sync to a cloud backend. Pre-seeded mock listings are generated on first launch.
+- **Mock Authentication**: OTP is simulated. Any 6-digit input is accepted.
+- **Mock Payments**: The app calculates accurate pricing/GST and simulates a loading spinner, but no real financial transactions (Razorpay/Stripe) take place.
+- **Image Hosting**: Uploading photos in the "Add Spot" flow accepts raw URLs instead of multipart image uploads to AWS S3/Firebase Storage.
+
+---
+
+## 🔮 Future Scope
+
+- **Cloud Migration**: Refactor the Repository layer to sync Room databases with Firebase Firestore or Supabase for real-time multi-device sync.
+- **Hardware / IoT Integration**: Integrate with smart EV wallboxes (via OCPP protocols) so the app can actually start/stop electricity flow and monitor live kWh consumption.
+- **Sensor-based Occupancy**: Integrate with ultrasonic or camera-based parking sensors to automatically mark a spot as "Occupied" or "Available".
+- **Real Payment Gateway**: Integrate Razorpay SDK for UPI, Card, and Wallet payments with automated vendor payouts to Hosts.
